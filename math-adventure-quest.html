@@ -770,16 +770,16 @@ body {
 
 .answers-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   margin-bottom: 20px;
 }
 
 .answer-btn {
-  padding: clamp(14px, 3vw, 20px);
+  padding: clamp(10px, 2vw, 14px);
   border: 3px solid transparent;
-  border-radius: 16px;
-  font-size: clamp(22px, 5vw, 32px);
+  border-radius: 12px;
+  font-size: clamp(16px, 3.5vw, 24px);
   font-weight: 800;
   cursor: pointer;
   transition: all 0.15s;
@@ -790,6 +790,10 @@ body {
 .answer-btn:nth-child(2) { background: #E67E22; }
 .answer-btn:nth-child(3) { background: #9B59B6; }
 .answer-btn:nth-child(4) { background: #1ABC9C; }
+.answer-btn:nth-child(5) { background: #E74C3C; }
+.answer-btn:nth-child(6) { background: #2ECC71; }
+.answer-btn:nth-child(7) { background: #F39C12; }
+.answer-btn:nth-child(8) { background: #3498DB; }
 
 .answer-btn:hover {
   transform: scale(1.06);
@@ -1044,12 +1048,9 @@ body {
   </div>
 
   <div class="setup-section">
-    <div class="setup-label">Difficulty</div>
-    <div class="btn-row" id="difficulty-row">
-      <button class="btn-choice selected" onclick="selectDifficulty('easy')">Easy</button>
-      <button class="btn-choice" onclick="selectDifficulty('medium')">Medium</button>
-      <button class="btn-choice" onclick="selectDifficulty('hard')">Hard</button>
-      <button class="btn-choice" onclick="selectDifficulty('word')">Word Problems</button>
+    <div class="setup-label">Difficulty increases as you advance!</div>
+    <div style="color: rgba(255,255,255,0.8); font-size: clamp(12px, 2.2vw, 16px); line-height: 1.5;">
+      Phase 1: Easy &rarr; Phase 2: Medium &rarr; Phase 3: Hard &rarr; Phase 4: Word Problems
     </div>
   </div>
 
@@ -1082,10 +1083,10 @@ body {
       <div class="zone-bg zone-bg-kai" id="zone-kai-bg">
         <!-- Embers and flames added by JS -->
       </div>
-      <div class="zone-label" id="zone-label-gabby" style="top: 4px;">Gabby's Dollhouse</div>
-      <div class="zone-label" id="zone-label-pepper" style="top: 29%;">Pepper's Farm</div>
-      <div class="zone-label" id="zone-label-marina" style="top: 54%;">Marina's Ocean</div>
-      <div class="zone-label" id="zone-label-kai" style="top: 79%;">Kai's Fire Zone</div>
+      <div class="zone-label" id="zone-label-gabby" style="top: 4px;">Phase 1: Easy</div>
+      <div class="zone-label" id="zone-label-pepper" style="top: 29%;">Phase 2: Medium</div>
+      <div class="zone-label" id="zone-label-marina" style="top: 54%;">Phase 3: Hard</div>
+      <div class="zone-label" id="zone-label-kai" style="top: 79%;">Phase 4: Word Problems</div>
     </div>
   </div>
   <button class="btn-question" id="btn-get-question" onclick="presentQuestion()">Answer a Question!</button>
@@ -1186,7 +1187,6 @@ const TIMER_SECONDS = 15;
 // ===== GAME STATE =====
 let gameState = {
   numPlayers: 1,
-  difficulty: 'easy',
   players: [],
   currentPlayerIndex: 0,
   turnPhase: 'waiting',
@@ -1347,17 +1347,6 @@ function selectPlayerCount(n) {
   gameState.numPlayers = n;
   const btns = document.querySelectorAll('#player-count-row .btn-choice');
   btns.forEach((b, i) => b.classList.toggle('selected', i === n - 1));
-  playSound('click');
-}
-
-function selectDifficulty(d) {
-  gameState.difficulty = d;
-  const diffMap = { 'easy': 'easy', 'medium': 'medium', 'hard': 'hard', 'word problems': 'word' };
-  const btns = document.querySelectorAll('#difficulty-row .btn-choice');
-  btns.forEach(b => {
-    const btnVal = diffMap[b.textContent.toLowerCase()] || b.textContent.toLowerCase();
-    b.classList.toggle('selected', btnVal === d);
-  });
   playSound('click');
 }
 
@@ -1694,8 +1683,16 @@ function shuffleArray(arr) {
   return a;
 }
 
+function getDifficultyFromPosition() {
+  const pos = gameState.players[gameState.currentPlayerIndex].position;
+  if (pos < 10) return 'easy';
+  if (pos < 20) return 'medium';
+  if (pos < 30) return 'hard';
+  return 'word';
+}
+
 function generateQuestion() {
-  const difficulty = gameState.difficulty;
+  const difficulty = getDifficultyFromPosition();
 
   // Word problems have their own generator
   if (difficulty === 'word') {
@@ -1714,82 +1711,77 @@ function generateQuestion() {
         b = randInt(1, 20 - a);
         answer = a + b;
         text = `${a} + ${b} = ?`;
-        qDiff = (a + b <= 10) ? 'easy' : 'medium';
+        qDiff = 'easy';
         break;
       case 'subtract':
         a = randInt(2, 20);
         b = randInt(1, a);
         answer = a - b;
         text = `${a} − ${b} = ?`;
-        qDiff = (a <= 10) ? 'easy' : 'medium';
+        qDiff = 'easy';
         break;
       case 'multiply':
         a = randInt(1, 5);
         b = randInt(1, 5);
         answer = a * b;
         text = `${a} × ${b} = ?`;
-        qDiff = (a <= 3 && b <= 3) ? 'easy' : 'medium';
+        qDiff = 'easy';
         break;
     }
   } else if (difficulty === 'medium') {
-    // Medium: harder add/subtract (up to 40) but easy multiply (up to 5×5)
     switch (operation) {
       case 'add':
         a = randInt(5, 25);
         b = randInt(5, 40 - a);
         answer = a + b;
         text = `${a} + ${b} = ?`;
-        qDiff = (a + b <= 20) ? 'medium' : 'hard';
+        qDiff = 'medium';
         break;
       case 'subtract':
         a = randInt(10, 40);
         b = randInt(1, a);
         answer = a - b;
         text = `${a} − ${b} = ?`;
-        qDiff = (a <= 20) ? 'medium' : 'hard';
+        qDiff = 'medium';
         break;
       case 'multiply':
         a = randInt(1, 5);
         b = randInt(1, 5);
         answer = a * b;
         text = `${a} × ${b} = ?`;
-        qDiff = (a <= 3 && b <= 3) ? 'easy' : 'medium';
+        qDiff = 'medium';
         break;
     }
   } else {
-    // Hard: everything big
+    // Hard
     switch (operation) {
       case 'add':
         a = randInt(5, 25);
         b = randInt(5, 40 - a);
         answer = a + b;
         text = `${a} + ${b} = ?`;
-        qDiff = (a + b <= 20) ? 'medium' : 'hard';
+        qDiff = 'hard';
         break;
       case 'subtract':
         a = randInt(10, 40);
         b = randInt(1, a);
         answer = a - b;
         text = `${a} − ${b} = ?`;
-        qDiff = (a <= 20) ? 'medium' : 'hard';
+        qDiff = 'hard';
         break;
       case 'multiply':
         a = randInt(2, 10);
         b = randInt(2, 10);
         answer = a * b;
         text = `${a} × ${b} = ?`;
-        qDiff = (a <= 5 && b <= 5) ? 'medium' : 'hard';
+        qDiff = 'hard';
         break;
     }
   }
 
-  const rewards = { easy: [1, 2], medium: [2, 3], hard: [3, 4] };
-  const [minR, maxR] = rewards[qDiff];
-  const reward = randInt(minR, maxR);
-
   const choices = generateChoices(answer);
 
-  return { text, correctAnswer: answer, choices, qDiff, reward, isWordProblem: false };
+  return { text, correctAnswer: answer, choices, qDiff, reward: 1, isWordProblem: false };
 }
 
 function generateWordProblem() {
@@ -1802,7 +1794,7 @@ function generateWordProblem() {
   const name2 = charNames[idx2];
 
   const templates = [
-    // Addition
+    // Addition (6 templates)
     { op: 'add', maxA: 15, maxSum: 20,
       tpl: (a,b,n1,n2) => `${n1} had ${a} cookies. ${n2} gave ${n1} ${b} more cookies. How many cookies does ${n1} have now?` },
     { op: 'add', maxA: 12, maxSum: 20,
@@ -1811,7 +1803,11 @@ function generateWordProblem() {
       tpl: (a,b,n1,n2) => `${n1} drew ${a} pictures in the morning and ${b} pictures after lunch. How many pictures did ${n1} draw in total?` },
     { op: 'add', maxA: 12, maxSum: 20,
       tpl: (a,b,n1,n2) => `${n1} has ${a} stickers. ${n2} gives ${n1} ${b} more stickers. How many stickers does ${n1} have now?` },
-    // Subtraction
+    { op: 'add', maxA: 15, maxSum: 25,
+      tpl: (a,b,n1,n2) => `${n1} scored ${a} points in round 1 and ${b} points in round 2. How many points does ${n1} have in total?` },
+    { op: 'add', maxA: 12, maxSum: 20,
+      tpl: (a,b,n1,n2) => `${n1} read ${a} books last week and ${b} books this week. How many books did ${n1} read altogether?` },
+    // Subtraction (6 templates)
     { op: 'sub', maxA: 18, maxSum: 20,
       tpl: (a,b,n1,n2) => `${n1} had ${a} cupcakes and gave ${b} to ${n2}. How many cupcakes does ${n1} have left?` },
     { op: 'sub', maxA: 15, maxSum: 20,
@@ -1820,7 +1816,11 @@ function generateWordProblem() {
       tpl: (a,b,n1,n2) => `There were ${a} apples on a tree. ${n2} picked ${b} apples. How many apples are still on the tree?` },
     { op: 'sub', maxA: 16, maxSum: 20,
       tpl: (a,b,n1,n2) => `${n1} had ${a} crayons but lost ${b}. How many crayons does ${n1} have now?` },
-    // Multiplication
+    { op: 'sub', maxA: 20, maxSum: 20,
+      tpl: (a,b,n1,n2) => `There were ${a} birds on a tree. ${b} flew away. How many birds are still on the tree?` },
+    { op: 'sub', maxA: 18, maxSum: 20,
+      tpl: (a,b,n1,n2) => `${n1} had ${a} grapes. ${n1} ate ${b} of them. How many grapes are left?` },
+    // Multiplication (4 templates)
     { op: 'mul', maxA: 5, maxSum: 25,
       tpl: (a,b,n1,n2) => `${n1} has ${a} bags. Each bag has ${b} toys inside. How many toys does ${n1} have in total?` },
     { op: 'mul', maxA: 5, maxSum: 25,
@@ -1828,7 +1828,16 @@ function generateWordProblem() {
     { op: 'mul', maxA: 4, maxSum: 20,
       tpl: (a,b,n1,n2) => `${n2} made ${a} plates of sandwiches. Each plate has ${b} sandwiches. How many sandwiches are there?` },
     { op: 'mul', maxA: 5, maxSum: 25,
-      tpl: (a,b,n1,n2) => `${n1} invited ${a} friends. Each friend brought ${b} presents. How many presents are there?` },
+      tpl: (a,b,n1,n2) => `${n1} has ${a} groups of ${b} seashells. How many seashells does ${n1} have in total?` },
+    // Division (4 templates)
+    { op: 'div',
+      tpl: (a,b,n1,n2) => `${n1} has ${a} cookies and wants to share them equally among ${b} friends. How many cookies does each friend get?` },
+    { op: 'div',
+      tpl: (a,b,n1,n2) => `There are ${a} stickers. ${n2} puts them equally into ${b} bags. How many stickers are in each bag?` },
+    { op: 'div',
+      tpl: (a,b,n1,n2) => `${n1} caught ${a} fish and puts them equally into ${b} buckets. How many fish are in each bucket?` },
+    { op: 'div',
+      tpl: (a,b,n1,n2) => `${n1} has ${a} cards and deals them equally to ${b} players. How many cards does each player get?` },
   ];
 
   const tmpl = templates[randInt(0, templates.length - 1)];
@@ -1844,6 +1853,12 @@ function generateWordProblem() {
     b = randInt(1, a - 1);
     answer = a - b;
     text = tmpl.tpl(a, b, name1, name2);
+  } else if (tmpl.op === 'div') {
+    // Division: pick answer and divisor, compute dividend
+    answer = randInt(2, 6);
+    b = randInt(2, 5);
+    a = answer * b; // ensures clean division
+    text = tmpl.tpl(a, b, name1, name2);
   } else {
     a = randInt(2, tmpl.maxA);
     b = randInt(2, 5);
@@ -1851,19 +1866,18 @@ function generateWordProblem() {
     text = tmpl.tpl(a, b, name1, name2);
   }
 
-  const qDiff = 'medium';
-  const reward = randInt(2, 3);
+  const qDiff = 'word';
   const choices = generateChoices(answer);
 
-  return { text, correctAnswer: answer, choices, qDiff, reward, isWordProblem: true };
+  return { text, correctAnswer: answer, choices, qDiff, reward: 1, isWordProblem: true };
 }
 
 function generateChoices(correct) {
   const choiceSet = new Set([correct]);
   let attempts = 0;
-  while (choiceSet.size < 4 && attempts < 50) {
+  while (choiceSet.size < 8 && attempts < 100) {
     attempts++;
-    const offset = randInt(1, Math.max(3, Math.floor(correct * 0.3) + 1));
+    const offset = randInt(1, Math.max(5, Math.floor(correct * 0.4) + 2));
     const sign = Math.random() < 0.5 ? -1 : 1;
     const d = correct + offset * sign;
     if (d >= 0 && d !== correct) {
@@ -1872,7 +1886,7 @@ function generateChoices(correct) {
   }
   // Fill remaining with simple offsets if needed
   let fill = 1;
-  while (choiceSet.size < 4) {
+  while (choiceSet.size < 8) {
     if (!choiceSet.has(correct + fill)) choiceSet.add(correct + fill);
     else if (!choiceSet.has(Math.max(0, correct - fill))) choiceSet.add(Math.max(0, correct - fill));
     fill++;
@@ -1899,21 +1913,18 @@ function presentQuestion() {
   const zoneNames = ['gabby', 'pepper', 'marina', 'kai'];
   document.getElementById('question-zone-bar').style.background = ZONE_COLORS[zoneNames[zoneIdx]];
 
-  // Badge
+  // Badge - show phase
   const badge = document.getElementById('question-badge');
-  if (question.isWordProblem) {
-    badge.textContent = 'Word Problem';
-    badge.className = 'question-difficulty-badge badge-word';
-  } else {
-    badge.textContent = question.qDiff.charAt(0).toUpperCase() + question.qDiff.slice(1);
-    badge.className = 'question-difficulty-badge badge-' + question.qDiff;
-  }
+  const phaseNames = { easy: 'Phase 1: Easy', medium: 'Phase 2: Medium', hard: 'Phase 3: Hard', word: 'Phase 4: Word Problem' };
+  const badgeClass = question.isWordProblem ? 'word' : question.qDiff;
+  badge.textContent = phaseNames[badgeClass] || badgeClass;
+  badge.className = 'question-difficulty-badge badge-' + badgeClass;
 
   // Question text
   const qTextEl = document.getElementById('question-text');
   qTextEl.textContent = question.text;
   qTextEl.classList.toggle('word-problem', !!question.isWordProblem);
-  document.getElementById('reward-text').textContent = `Worth ${question.reward} space${question.reward > 1 ? 's' : ''}!`;
+  document.getElementById('reward-text').textContent = 'Get it right to move forward!';
 
   // Answer buttons
   const grid = document.getElementById('answers-grid');
@@ -2008,10 +2019,10 @@ function submitAnswer(chosen, clickedBtn) {
 
     setTimeout(() => {
       hideModal('modal-question');
-      showFeedback(true, question.correctAnswer, question.reward);
+      showFeedback(true, question.correctAnswer, 1);
       setTimeout(() => {
         hideModal('modal-feedback');
-        movePlayer(gameState.currentPlayerIndex, question.reward);
+        movePlayer(gameState.currentPlayerIndex, 1);
       }, 1200);
     }, 600);
   } else {
@@ -2019,15 +2030,12 @@ function submitAnswer(chosen, clickedBtn) {
     playSound('wrong');
     speakWrongEncouragement();
 
-    // Penalty: go back 1 space (easy/medium questions) or 2 spaces (hard questions)
-    const penalty = question.qDiff === 'hard' ? 2 : 1;
-
     setTimeout(() => {
       hideModal('modal-question');
-      showFeedback(false, question.correctAnswer, penalty, timedOut);
+      showFeedback(false, question.correctAnswer, 1, timedOut);
       setTimeout(() => {
         hideModal('modal-feedback');
-        movePlayerBack(gameState.currentPlayerIndex, penalty);
+        movePlayerBack(gameState.currentPlayerIndex, 1);
       }, 1800);
     }, timedOut ? 200 : 800);
   }
@@ -2044,15 +2052,14 @@ function showFeedback(isCorrect, correctAnswer, reward, timedOut) {
     box.className = 'feedback-box feedback-correct';
     icon.textContent = '✓';
     msg.textContent = `Correct, ${player.charName}!`;
-    detail.textContent = `Move forward ${reward} space${reward > 1 ? 's' : ''}!`;
+    detail.textContent = `Move forward 1 space!`;
   } else {
     box.className = 'feedback-box feedback-wrong';
     icon.textContent = timedOut ? '⏰' : '✗';
     msg.textContent = timedOut ? "Time's up!" : 'Not quite!';
     const player = gameState.players[gameState.currentPlayerIndex];
-    const actualBack = Math.min(reward, player.position);
-    if (actualBack > 0) {
-      detail.textContent = `The answer was ${correctAnswer} — go back ${actualBack}!`;
+    if (player.position > 0) {
+      detail.textContent = `The answer was ${correctAnswer} — go back 1!`;
     } else {
       detail.textContent = `The answer was ${correctAnswer}`;
     }
@@ -2261,7 +2268,6 @@ function resetGame() {
   document.querySelectorAll('.confetti-piece, .star-particle, .encourage-msg, .bubble, .ember, .flame-glow, .ocean-wave, .mud-puddle, .fence-section').forEach(el => el.remove());
   gameState = {
     numPlayers: 1,
-    difficulty: 'easy',
     players: [],
     currentPlayerIndex: 0,
     turnPhase: 'waiting',
@@ -2278,8 +2284,6 @@ function resetGame() {
   // Reset start screen buttons
   const pBtns = document.querySelectorAll('#player-count-row .btn-choice');
   pBtns.forEach((b, i) => b.classList.toggle('selected', i === 0));
-  const dBtns = document.querySelectorAll('#difficulty-row .btn-choice');
-  dBtns.forEach((b, i) => b.classList.toggle('selected', i === 0));
 
   showScreen('screen-start');
 }
