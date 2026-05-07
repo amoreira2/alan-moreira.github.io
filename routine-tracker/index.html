@@ -6,8 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#7c4dff">
-    <title>⭐ Super Star Tracker</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
+    <title>🌈 Daily Routine Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌈</text></svg>">
     <style>
         :root {
             --bg: #f3e8ff;
@@ -22,6 +22,8 @@
             --orange-light: #fff3e0;
             --pink: #e91e63;
             --pink-light: #fce4ec;
+            --red: #c62828;
+            --red-light: #ffebee;
             --gold: #ffd700;
             --purple: #7c4dff;
             --purple-light: #ede7f6;
@@ -189,6 +191,8 @@
         .checkin-card.active-teal { border-color: var(--teal); background: var(--teal-light); }
         .checkin-card.active-orange { border-color: var(--orange); background: var(--orange-light); }
         .checkin-card.active-pink { border-color: var(--pink); background: var(--pink-light); }
+        .checkin-card.active-red { border-color: var(--red); background: var(--red-light); }
+        .checkin-card.active-purple { border-color: var(--purple); background: var(--purple-light); }
 
         .checkin-icon {
             font-size: 2.5rem;
@@ -211,6 +215,20 @@
         .bg-teal { background: var(--teal-light); }
         .bg-orange { background: var(--orange-light); }
         .bg-pink { background: var(--pink-light); }
+        .bg-red { background: var(--red-light); }
+        .bg-purple { background: var(--purple-light); }
+
+        .group-title {
+            font-size: 1rem;
+            font-weight: 800;
+            margin: 22px 0 8px;
+            padding-left: 4px;
+            color: var(--purple);
+        }
+        .group-title.muted { color: var(--red); opacity: 0.85; }
+        .group-title.muted small { font-weight: 500; font-size: 0.7rem; opacity: 0.7; }
+
+        .checkin-card.active-red .counter-num { color: var(--red); }
 
         .checkin-text h3 { font-size: 1.15rem; font-weight: 700; }
         .checkin-text p { font-size: 0.85rem; color: var(--text-light); margin-top: 2px; }
@@ -578,8 +596,8 @@
 
 <!-- ===== SETUP SCREEN ===== -->
 <div id="setup-screen">
-    <div class="setup-title">⭐ Super Star Tracker</div>
-    <div class="setup-subtitle">Track your awesome days!</div>
+    <div class="setup-title">🌈 Daily Routine Tracker</div>
+    <div class="setup-subtitle">Track your awesome habits!</div>
 
     <input id="code-input" class="setup-input" type="text" maxlength="8" placeholder="Family code" autocomplete="off">
     <div id="setup-error" style="color:#f44336; font-size:0.9rem; margin-top:8px; min-height:20px; font-weight:600;"></div>
@@ -598,8 +616,8 @@
 <!-- ===== MAIN APP ===== -->
 <div id="app">
     <div class="header">
-        <div class="header-title">⭐ Super Star Tracker</div>
-        <div style="font-size:0.8rem; margin-top:4px;"><a href="../routine-tracker/" style="color:var(--purple); text-decoration:none;">→ Switch to Routine Tracker</a></div>
+        <div class="header-title">🌈 Daily Routine Tracker</div>
+        <div style="font-size:0.8rem; margin-top:4px;"><a href="../potty-tracker/" style="color:var(--purple); text-decoration:none;">→ Switch to Potty Tracker</a></div>
         <div class="header-date" id="header-date"></div>
         <div class="header-code" id="header-code" onclick="showCodeInfo()"></div>
     </div>
@@ -618,61 +636,116 @@
 
     <!-- Check-in Cards -->
     <div class="checkin-cards">
-        <div class="checkin-card" id="card-dry" onclick="toggleCheckin('dry')">
-            <div class="checkin-icon bg-green">🏫</div>
+        <div class="group-title">🏡 Coming Home</div>
+
+        <div class="checkin-card" id="card-jacket" onclick="toggleCheckin('jacket')">
+            <div class="checkin-icon bg-blue">🧥</div>
             <div class="checkin-text">
-                <h3>I Was Dry at School!</h3>
-                <p>No accidents during school</p>
+                <h3>Hung Up Jacket & Shoes</h3>
+                <p>Jacket hung, shoes tucked in</p>
             </div>
             <div class="checkin-check">✅</div>
         </div>
 
-        <div class="checkin-card" id="card-dryHome" onclick="toggleCheckin('dryHome')">
-            <div class="checkin-icon bg-blue">🏠</div>
+        <div class="checkin-card" id="card-lunchbox" onclick="toggleCheckin('lunchbox')">
+            <div class="checkin-icon bg-blue">🥪</div>
             <div class="checkin-text">
-                <h3>I Stayed Dry at Home!</h3>
-                <p>No accidents at home</p>
+                <h3>Lunchbox & Water Bottle</h3>
+                <p>Put them in the kitchen</p>
             </div>
             <div class="checkin-check">✅</div>
         </div>
 
-        <div class="checkin-card" id="card-clean" onclick="toggleCheckin('clean')">
-            <div class="checkin-icon bg-teal">🧼</div>
+        <div class="group-title">📚 School & Learning</div>
+
+        <div class="checkin-card" id="card-homework" onclick="toggleCheckin('homework')">
+            <div class="checkin-icon bg-purple">✏️</div>
             <div class="checkin-text">
-                <h3>I Cleaned Myself!</h3>
-                <p>Wiped all on my own</p>
+                <h3>Did My Homework</h3>
+                <p>All done!</p>
             </div>
             <div class="checkin-check">✅</div>
         </div>
 
-        <div class="checkin-card" id="card-coop" onclick="incrementCounter('coop')">
-            <div class="checkin-icon bg-orange">🤝</div>
+        <div class="checkin-card" id="card-read" onclick="toggleCheckin('read')">
+            <div class="checkin-icon bg-purple">📖</div>
             <div class="checkin-text">
-                <h3>I Cooperated!</h3>
-                <p>Went when asked — tap each time</p>
+                <h3>Read 20 Minutes</h3>
+                <p>Quiet reading time</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="group-title">🍎 Healthy Habits</div>
+
+        <div class="checkin-card" id="card-fruit" onclick="toggleCheckin('fruit')">
+            <div class="checkin-icon bg-green">🍎</div>
+            <div class="checkin-text">
+                <h3>Ate My Fruit at Breakfast</h3>
+                <p>Healthy start to the day</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="checkin-card" id="card-bedroom" onclick="toggleCheckin('bedroom')">
+            <div class="checkin-icon bg-green">🛏️</div>
+            <div class="checkin-text">
+                <h3>Kept My Bedroom Tidy</h3>
+                <p>Clean and organized</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="group-title">💛 Kind & Helpful</div>
+
+        <div class="checkin-card" id="card-tone" onclick="toggleCheckin('tone')">
+            <div class="checkin-icon bg-orange">🗣️</div>
+            <div class="checkin-text">
+                <h3>Used a Kind Tone of Voice</h3>
+                <p>Spoke nicely to others</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="checkin-card" id="card-helpful" onclick="toggleCheckin('helpful')">
+            <div class="checkin-icon bg-orange">🤲</div>
+            <div class="checkin-text">
+                <h3>Helpful with House Routine</h3>
+                <p>Pitched in around the house</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="group-title muted">⚠️ Slip-ups <small>(things to work on)</small></div>
+
+        <div class="checkin-card" id="card-unkindSister" onclick="incrementCounter('unkindSister')">
+            <div class="checkin-icon bg-red">😔</div>
+            <div class="checkin-text">
+                <h3>Unkind with Sister</h3>
+                <p>Tap each time it happened</p>
             </div>
             <div class="checkin-counter">
-                <span class="counter-num" id="count-coop">0</span>
-                <button class="counter-reset" onclick="resetCounter(event,'coop')" aria-label="Reset">↺</button>
+                <span class="counter-num" id="count-unkindSister">0</span>
+                <button class="counter-reset" onclick="resetCounter(event,'unkindSister')" aria-label="Reset">↺</button>
             </div>
         </div>
 
-        <div class="checkin-card" id="card-self" onclick="incrementCounter('self')">
-            <div class="checkin-icon bg-pink">🌟</div>
+        <div class="checkin-card" id="card-unkindParents" onclick="incrementCounter('unkindParents')">
+            <div class="checkin-icon bg-red">😔</div>
             <div class="checkin-text">
-                <h3>I Went by Myself!</h3>
-                <p>No reminders — tap each time</p>
+                <h3>Unkind with Parents & Laine</h3>
+                <p>Tap each time it happened</p>
             </div>
             <div class="checkin-counter">
-                <span class="counter-num" id="count-self">0</span>
-                <button class="counter-reset" onclick="resetCounter(event,'self')" aria-label="Reset">↺</button>
+                <span class="counter-num" id="count-unkindParents">0</span>
+                <button class="counter-reset" onclick="resetCounter(event,'unkindParents')" aria-label="Reset">↺</button>
             </div>
         </div>
     </div>
 
     <div id="perfect-banner" class="perfect-banner">
         <div class="emoji">🎉🏆🎉</div>
-        <div class="text">PERFECT DAY! You're a superstar!</div>
+        <div class="text">PERFECT ROUTINE DAY! 🌈</div>
     </div>
 
     <!-- Tabs -->
@@ -783,8 +856,11 @@ function daysBetween(a, b) {
 }
 
 // ==================== PERSISTENCE ====================
+const STORAGE_PREFIX = "routine-tracker-";
+const FIREBASE_PATH = "routineEntries";
+
 function saveLocal() {
-    localStorage.setItem("star-tracker-" + state.familyCode, JSON.stringify(state.entries));
+    localStorage.setItem(STORAGE_PREFIX + state.familyCode, JSON.stringify(state.entries));
     localStorage.setItem("star-tracker-code", state.familyCode);
 }
 
@@ -792,7 +868,7 @@ function loadLocal() {
     const code = localStorage.getItem("star-tracker-code");
     if (code) {
         state.familyCode = code;
-        const data = localStorage.getItem("star-tracker-" + code);
+        const data = localStorage.getItem(STORAGE_PREFIX + code);
         if (data) state.entries = JSON.parse(data);
         return true;
     }
@@ -817,7 +893,7 @@ function initFirebase() {
 function listenToFirebase() {
     if (!firebaseReady || !state.familyCode) return;
     if (dbRef) dbRef.off();
-    dbRef = firebase.database().ref("families/" + state.familyCode + "/entries");
+    dbRef = firebase.database().ref("families/" + state.familyCode + "/" + FIREBASE_PATH);
     dbRef.on("value", snap => {
         const data = snap.val();
         if (data) {
@@ -831,7 +907,7 @@ function listenToFirebase() {
 
 function pushToFirebase() {
     if (!firebaseReady || !state.familyCode) return;
-    firebase.database().ref("families/" + state.familyCode + "/entries").set(state.entries);
+    firebase.database().ref("families/" + state.familyCode + "/" + FIREBASE_PATH).set(state.entries);
 }
 
 function updateSyncBanner(connected) {
@@ -898,17 +974,19 @@ function logout() {
 }
 
 // ==================== CHECK-IN LOGIC ====================
-const BOOL_FIELDS = ["dry", "dryHome", "clean"];
-const COUNTER_FIELDS = ["coop", "self"];
+const BOOL_FIELDS = ["jacket", "lunchbox", "homework", "read", "fruit", "bedroom", "tone", "helpful"];
+const COUNTER_FIELDS = [];
+const NEGATIVE_COUNTERS = ["unkindSister", "unkindParents"];
+const ALL_COUNTERS = COUNTER_FIELDS.concat(NEGATIVE_COUNTERS);
 
 function entryIsEmpty(e) {
     if (!e) return true;
-    return BOOL_FIELDS.every(f => !e[f]) && COUNTER_FIELDS.every(f => !e[f]);
+    return BOOL_FIELDS.every(f => !e[f]) && ALL_COUNTERS.every(f => !e[f]);
 }
 
 function isPerfectDay(e) {
     if (!e) return false;
-    return BOOL_FIELDS.every(f => e[f]) && COUNTER_FIELDS.every(f => (e[f] || 0) >= 1);
+    return BOOL_FIELDS.every(f => e[f]) && NEGATIVE_COUNTERS.every(f => !(e[f] > 0));
 }
 
 function toggleCheckin(field) {
@@ -916,6 +994,7 @@ function toggleCheckin(field) {
     if (!state.entries[date]) state.entries[date] = {};
     const wasActive = state.entries[date][field];
     state.entries[date][field] = !wasActive;
+    if (!state.entries[date][field]) delete state.entries[date][field];
     if (entryIsEmpty(state.entries[date])) delete state.entries[date];
 
     saveLocal();
@@ -940,6 +1019,7 @@ function incrementCounter(field) {
     renderCheckin();
     renderMilestones();
 
+    if (NEGATIVE_COUNTERS.includes(field)) return;
     triggerConfetti(field);
     if (isPerfectDay(state.entries[date])) setTimeout(triggerPerfectDay, 300);
 }
@@ -959,18 +1039,17 @@ function resetCounter(ev, field) {
 
 // ==================== CONFETTI ====================
 function triggerConfetti(field) {
-    const colors = {
-        dry: ["#43a047", "#81c784", "#a5d6a7"],
-        dryHome: ["#1e88e5", "#64b5f6", "#90caf9"],
-        clean: ["#00897b", "#4db6ac", "#80cbc4"],
-        coop: ["#fb8c00", "#ffb74d", "#ffe0b2"],
-        self: ["#e91e63", "#f06292", "#f8bbd0"]
+    const groupColors = {
+        jacket: ["#1e88e5", "#64b5f6"], lunchbox: ["#1e88e5", "#64b5f6"],
+        homework: ["#7c4dff", "#b388ff"], read: ["#7c4dff", "#b388ff"],
+        fruit: ["#43a047", "#81c784"], bedroom: ["#43a047", "#81c784"],
+        tone: ["#fb8c00", "#ffb74d"], helpful: ["#fb8c00", "#ffb74d"]
     };
     confetti({
-        particleCount: 50,
+        particleCount: 40,
         spread: 60,
         origin: { y: 0.7 },
-        colors: colors[field] || ["#7c4dff"],
+        colors: groupColors[field] || ["#7c4dff"],
         disableForReducedMotion: true
     });
 }
@@ -1033,22 +1112,23 @@ function renderCheckin() {
     document.getElementById("next-day").disabled = date >= todayStr();
 
     const boolCards = [
-        { key: "dry", id: "card-dry", cls: "active-green" },
-        { key: "dryHome", id: "card-dryHome", cls: "active-blue" },
-        { key: "clean", id: "card-clean", cls: "active-teal" }
+        { key: "jacket", cls: "active-blue" },
+        { key: "lunchbox", cls: "active-blue" },
+        { key: "homework", cls: "active-purple" },
+        { key: "read", cls: "active-purple" },
+        { key: "fruit", cls: "active-green" },
+        { key: "bedroom", cls: "active-green" },
+        { key: "tone", cls: "active-orange" },
+        { key: "helpful", cls: "active-orange" }
     ];
     boolCards.forEach(f => {
-        document.getElementById(f.id).classList.toggle(f.cls, !!entry[f.key]);
+        document.getElementById("card-" + f.key).classList.toggle(f.cls, !!entry[f.key]);
     });
 
-    const counterCards = [
-        { key: "coop", id: "card-coop", cls: "active-orange" },
-        { key: "self", id: "card-self", cls: "active-pink" }
-    ];
-    counterCards.forEach(f => {
-        const count = entry[f.key] || 0;
-        document.getElementById(f.id).classList.toggle(f.cls, count > 0);
-        document.getElementById("count-" + f.key).textContent = count;
+    NEGATIVE_COUNTERS.forEach(key => {
+        const count = entry[key] || 0;
+        document.getElementById("card-" + key).classList.toggle("active-red", count > 0);
+        document.getElementById("count-" + key).textContent = count;
     });
 
     document.getElementById("perfect-banner").classList.toggle("show", isPerfectDay(entry));
@@ -1104,8 +1184,7 @@ function renderCalendar() {
     for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const entry = state.entries[dateStr] || {};
-        const count = BOOL_FIELDS.reduce((n,f) => n + (entry[f] ? 1 : 0), 0)
-                    + COUNTER_FIELDS.reduce((n,f) => n + ((entry[f] || 0) > 0 ? 1 : 0), 0);
+        const count = BOOL_FIELDS.reduce((n,f) => n + (entry[f] ? 1 : 0), 0);
         const isToday = dateStr === todayStr();
         const isFuture = dateStr > todayStr();
         const perfect = isPerfectDay(entry);
@@ -1142,19 +1221,31 @@ function renderStats() {
         { label: "Last 30 Days", days: 30 }
     ];
 
+    const labels = {
+        jacket: "🧥 Jacket", lunchbox: "🥪 Lunchbox",
+        homework: "✏️ Homework", read: "📖 Read",
+        fruit: "🍎 Fruit", bedroom: "🛏️ Bedroom",
+        tone: "🗣️ Kind Tone", helpful: "🤲 Helpful",
+        unkindSister: "😔 Unkind Sister", unkindParents: "😔 Unkind P&L"
+    };
     let html = '';
     periods.forEach(p => {
         const s = calcPeriodStats(p.days);
-        html += `<div class="section-title">${p.label}</div>`;
+        html += `<div class="section-title">${p.label} • 🏆 ${s.perfectDays} perfect</div>`;
         html += `<div class="stats-row">
-            <div class="stat-card"><div class="stat-number">${s.dry}/${s.total}</div><div class="stat-label">🏫 Dry School</div></div>
-            <div class="stat-card"><div class="stat-number">${s.dryHome}/${s.total}</div><div class="stat-label">🏠 Dry Home</div></div>
-            <div class="stat-card"><div class="stat-number">${s.clean}/${s.total}</div><div class="stat-label">🧼 Cleaned</div></div>
+            <div class="stat-card"><div class="stat-number">${s.jacket}/${s.total}</div><div class="stat-label">${labels.jacket}</div></div>
+            <div class="stat-card"><div class="stat-number">${s.lunchbox}/${s.total}</div><div class="stat-label">${labels.lunchbox}</div></div>
+            <div class="stat-card"><div class="stat-number">${s.homework}/${s.total}</div><div class="stat-label">${labels.homework}</div></div>
         </div>`;
         html += `<div class="stats-row">
-            <div class="stat-card"><div class="stat-number">${s.coop}</div><div class="stat-label">🤝 Cooperated</div></div>
-            <div class="stat-card"><div class="stat-number">${s.self}</div><div class="stat-label">🌟 By Self</div></div>
-            <div class="stat-card"><div class="stat-number">${s.perfectDays}</div><div class="stat-label">🏆 Perfect Days</div></div>
+            <div class="stat-card"><div class="stat-number">${s.read}/${s.total}</div><div class="stat-label">${labels.read}</div></div>
+            <div class="stat-card"><div class="stat-number">${s.fruit}/${s.total}</div><div class="stat-label">${labels.fruit}</div></div>
+            <div class="stat-card"><div class="stat-number">${s.bedroom}/${s.total}</div><div class="stat-label">${labels.bedroom}</div></div>
+        </div>`;
+        html += `<div class="stats-row">
+            <div class="stat-card"><div class="stat-number">${s.tone}/${s.total}</div><div class="stat-label">${labels.tone}</div></div>
+            <div class="stat-card"><div class="stat-number">${s.helpful}/${s.total}</div><div class="stat-label">${labels.helpful}</div></div>
+            <div class="stat-card" style="background:var(--red-light)"><div class="stat-number" style="color:var(--red)">${s.unkindSister + s.unkindParents}</div><div class="stat-label">⚠️ Slip-ups</div></div>
         </div>`;
     });
 
@@ -1163,7 +1254,7 @@ function renderStats() {
 
 // ==================== STREAK CALCULATIONS ====================
 function entryHasAny(e) {
-    return !!e && (BOOL_FIELDS.some(f => e[f]) || COUNTER_FIELDS.some(f => (e[f] || 0) > 0));
+    return !!e && BOOL_FIELDS.some(f => e[f]);
 }
 
 function calcStreak() {
@@ -1195,13 +1286,15 @@ function calcBestStreak() {
 }
 
 function calcPeriodStats(days) {
-    const stats = { dry: 0, dryHome: 0, clean: 0, coop: 0, self: 0, total: days, perfectDays: 0 };
+    const stats = { total: days, perfectDays: 0 };
+    BOOL_FIELDS.forEach(f => stats[f] = 0);
+    NEGATIVE_COUNTERS.forEach(f => stats[f] = 0);
     for (let i = 0; i < days; i++) {
         const d = addDays(todayStr(), -i);
         const e = state.entries[d];
         if (!e) continue;
         BOOL_FIELDS.forEach(f => { if (e[f]) stats[f]++; });
-        COUNTER_FIELDS.forEach(f => { stats[f] += (e[f] || 0); });
+        NEGATIVE_COUNTERS.forEach(f => { stats[f] += (e[f] || 0); });
         if (isPerfectDay(e)) stats.perfectDays++;
     }
     return stats;
