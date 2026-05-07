@@ -1,0 +1,1129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#7c4dff">
+    <title>⭐ Super Star Tracker</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
+    <style>
+        :root {
+            --bg: #f3e8ff;
+            --card-bg: #ffffff;
+            --green: #43a047;
+            --green-light: #e8f5e9;
+            --orange: #fb8c00;
+            --orange-light: #fff3e0;
+            --pink: #e91e63;
+            --pink-light: #fce4ec;
+            --gold: #ffd700;
+            --purple: #7c4dff;
+            --purple-light: #ede7f6;
+            --text: #333;
+            --text-light: #888;
+            --radius: 20px;
+            --shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100dvh;
+            padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+            overflow-x: hidden;
+        }
+
+        /* ===== SETUP SCREEN ===== */
+        #setup-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100dvh;
+            text-align: center;
+            padding: 24px;
+        }
+
+        .setup-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .setup-subtitle {
+            color: var(--text-light);
+            margin-bottom: 40px;
+            font-size: 1.1rem;
+        }
+
+        .setup-input {
+            width: 100%;
+            max-width: 300px;
+            padding: 16px 20px;
+            font-size: 1.3rem;
+            border: 3px solid var(--purple);
+            border-radius: var(--radius);
+            text-align: center;
+            outline: none;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            background: white;
+        }
+
+        .setup-input::placeholder {
+            letter-spacing: 1px;
+            text-transform: none;
+            font-weight: 400;
+            color: #ccc;
+        }
+
+        .setup-btn {
+            margin-top: 20px;
+            padding: 16px 40px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: none;
+            border-radius: var(--radius);
+            background: var(--purple);
+            color: white;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            box-shadow: var(--shadow);
+        }
+
+        .setup-btn:active { transform: scale(0.95); }
+
+        .setup-or {
+            margin: 20px 0;
+            color: var(--text-light);
+            font-size: 0.9rem;
+        }
+
+        .setup-generate {
+            background: none;
+            border: 2px dashed var(--purple);
+            color: var(--purple);
+            padding: 12px 30px;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .setup-generate:active { transform: scale(0.95); }
+
+        .setup-hint {
+            margin-top: 30px;
+            color: var(--text-light);
+            font-size: 0.85rem;
+            max-width: 300px;
+            line-height: 1.4;
+        }
+
+        /* ===== MAIN APP ===== */
+        #app { display: none; max-width: 500px; margin: 0 auto; padding-bottom: 40px; }
+
+        .header {
+            text-align: center;
+            padding: 20px 0 10px;
+        }
+
+        .header-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+        }
+
+        .header-date {
+            font-size: 1.1rem;
+            color: var(--purple);
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .header-code {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            margin-top: 4px;
+            cursor: pointer;
+        }
+
+        /* ===== CHECKIN CARDS ===== */
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin: 24px 0 12px;
+            padding-left: 4px;
+        }
+
+        .checkin-cards { display: flex; flex-direction: column; gap: 14px; }
+
+        .checkin-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.2s;
+            border: 3px solid transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .checkin-card:active { transform: scale(0.97); }
+
+        .checkin-card.active-green { border-color: var(--green); background: var(--green-light); }
+        .checkin-card.active-orange { border-color: var(--orange); background: var(--orange-light); }
+        .checkin-card.active-pink { border-color: var(--pink); background: var(--pink-light); }
+
+        .checkin-icon {
+            font-size: 2.5rem;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            flex-shrink: 0;
+            transition: transform 0.3s;
+        }
+
+        .checkin-card.active-green .checkin-icon,
+        .checkin-card.active-orange .checkin-icon,
+        .checkin-card.active-pink .checkin-icon {
+            animation: iconPop 0.4s ease;
+        }
+
+        .bg-green { background: var(--green-light); }
+        .bg-orange { background: var(--orange-light); }
+        .bg-pink { background: var(--pink-light); }
+
+        .checkin-text h3 { font-size: 1.15rem; font-weight: 700; }
+        .checkin-text p { font-size: 0.85rem; color: var(--text-light); margin-top: 2px; }
+
+        .checkin-check {
+            margin-left: auto;
+            font-size: 1.8rem;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.3s;
+            transform: scale(0.5);
+        }
+
+        .checkin-card[class*="active"] .checkin-check {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        @keyframes iconPop {
+            0% { transform: scale(1); }
+            40% { transform: scale(1.3) rotate(-10deg); }
+            70% { transform: scale(0.9) rotate(5deg); }
+            100% { transform: scale(1) rotate(0); }
+        }
+
+        /* ===== PERFECT DAY BANNER ===== */
+        .perfect-banner {
+            display: none;
+            text-align: center;
+            padding: 16px;
+            margin-top: 16px;
+            background: linear-gradient(135deg, #fff9c4, #ffe082);
+            border-radius: var(--radius);
+            border: 3px solid var(--gold);
+            animation: bannerPop 0.5s ease;
+        }
+
+        .perfect-banner.show { display: block; }
+        .perfect-banner .emoji { font-size: 2rem; }
+        .perfect-banner .text { font-size: 1.1rem; font-weight: 700; margin-top: 4px; }
+
+        @keyframes bannerPop {
+            0% { transform: scale(0.8); opacity: 0; }
+            60% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ===== NAV TABS ===== */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            margin: 24px 0 12px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+        }
+
+        .nav-tab {
+            flex-shrink: 0;
+            padding: 10px 18px;
+            border-radius: 30px;
+            border: 2px solid #e0d4f5;
+            background: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-tab.active {
+            background: var(--purple);
+            color: white;
+            border-color: var(--purple);
+        }
+
+        /* ===== MILESTONES ===== */
+        .milestones { display: flex; flex-direction: column; gap: 12px; }
+
+        .milestone {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 14px 18px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .milestone.unlocked {
+            background: linear-gradient(135deg, #fff9c4, #ffe082);
+            border: 2px solid var(--gold);
+        }
+
+        .milestone.unlocked .milestone-icon { animation: badgeShine 2s ease infinite; }
+
+        .milestone-icon { font-size: 2rem; flex-shrink: 0; }
+
+        .milestone-info { flex: 1; }
+        .milestone-info h4 { font-size: 1rem; font-weight: 700; }
+        .milestone-info p { font-size: 0.8rem; color: var(--text-light); margin-top: 2px; }
+
+        .milestone-progress {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .milestone-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--purple), #b388ff);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .milestone.unlocked .milestone-progress-bar {
+            background: linear-gradient(90deg, var(--gold), #ffab00);
+        }
+
+        .milestone-status {
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+
+        @keyframes badgeShine {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* ===== CALENDAR ===== */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }
+
+        .cal-header {
+            text-align: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-light);
+            padding: 4px 0;
+        }
+
+        .cal-day {
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: var(--card-bg);
+            position: relative;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+
+        .cal-day.empty { background: transparent; box-shadow: none; }
+        .cal-day.today { border: 2px solid var(--purple); }
+        .cal-day.future { opacity: 0.3; }
+
+        .cal-day .stars {
+            font-size: 0.55rem;
+            margin-top: 1px;
+            height: 10px;
+            line-height: 10px;
+        }
+
+        .cal-day.perfect {
+            background: linear-gradient(135deg, #fff9c4, #ffe082);
+        }
+
+        .cal-day.has-some {
+            background: var(--purple-light);
+        }
+
+        /* ===== STATS SECTION ===== */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 14px 8px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--purple);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* ===== STREAK FLAMES ===== */
+        .streak-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 16px;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            margin-bottom: 16px;
+        }
+
+        .streak-display .flame { font-size: 2rem; }
+        .streak-display .count { font-size: 2rem; font-weight: 800; color: var(--purple); }
+        .streak-display .label { font-size: 0.9rem; color: var(--text-light); font-weight: 600; }
+
+        /* ===== DATE NAV ===== */
+        .date-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            margin: 8px 0 16px;
+        }
+
+        .date-nav-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #e0d4f5;
+            background: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .date-nav-btn:active { transform: scale(0.9); }
+        .date-nav-btn:disabled { opacity: 0.3; }
+
+        .date-nav-label {
+            font-size: 1rem;
+            font-weight: 700;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .today-btn {
+            font-size: 0.8rem;
+            color: var(--purple);
+            font-weight: 600;
+            cursor: pointer;
+            background: none;
+            border: none;
+            text-decoration: underline;
+        }
+
+        /* ===== FIREBASE BANNER ===== */
+        .sync-banner {
+            display: none;
+            text-align: center;
+            padding: 10px 16px;
+            margin-bottom: 12px;
+            border-radius: var(--radius);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .sync-banner.offline {
+            display: block;
+            background: #fff3e0;
+            color: var(--orange);
+        }
+
+        .sync-banner.synced {
+            display: block;
+            background: var(--green-light);
+            color: var(--green);
+        }
+
+        /* ===== SETTINGS ===== */
+        .settings-bar {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0d4f5;
+        }
+
+        .settings-btn {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            background: none;
+            border: none;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== SETUP SCREEN ===== -->
+<div id="setup-screen">
+    <div class="setup-title">⭐ Super Star Tracker</div>
+    <div class="setup-subtitle">Track your awesome days!</div>
+
+    <input id="code-input" class="setup-input" type="text" maxlength="8" placeholder="Family code" autocomplete="off">
+    <div id="setup-error" style="color:#f44336; font-size:0.9rem; margin-top:8px; min-height:20px; font-weight:600;"></div>
+
+    <button class="setup-btn" onclick="joinFamily()">Let's Go! 🚀</button>
+
+    <div class="setup-or">— or —</div>
+
+    <button class="setup-generate" onclick="generateCode()">Create New Code ✨</button>
+
+    <div class="setup-hint">
+        Use the same family code on every phone to keep everything in sync.
+    </div>
+</div>
+
+<!-- ===== MAIN APP ===== -->
+<div id="app">
+    <div class="header">
+        <div class="header-title">⭐ Super Star Tracker</div>
+        <div class="header-date" id="header-date"></div>
+        <div class="header-code" id="header-code" onclick="showCodeInfo()"></div>
+    </div>
+
+    <div id="sync-banner" class="sync-banner"></div>
+
+    <!-- Date Navigation -->
+    <div class="date-nav">
+        <button class="date-nav-btn" id="prev-day" onclick="changeDay(-1)">◀</button>
+        <div>
+            <div class="date-nav-label" id="day-label"></div>
+            <button class="today-btn" id="today-btn" onclick="goToToday()" style="display:none">Back to Today</button>
+        </div>
+        <button class="date-nav-btn" id="next-day" onclick="changeDay(1)">▶</button>
+    </div>
+
+    <!-- Check-in Cards -->
+    <div class="checkin-cards">
+        <div class="checkin-card" id="card-dry" onclick="toggleCheckin('dry')">
+            <div class="checkin-icon bg-green">🏫</div>
+            <div class="checkin-text">
+                <h3>I Was Dry at School!</h3>
+                <p>No accidents during school</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="checkin-card" id="card-coop" onclick="toggleCheckin('coop')">
+            <div class="checkin-icon bg-orange">🤝</div>
+            <div class="checkin-text">
+                <h3>I Cooperated!</h3>
+                <p>Went when asked after school</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="checkin-card" id="card-self" onclick="toggleCheckin('self')">
+            <div class="checkin-icon bg-pink">🌟</div>
+            <div class="checkin-text">
+                <h3>I Went by Myself!</h3>
+                <p>All on my own — no reminders</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+    </div>
+
+    <div id="perfect-banner" class="perfect-banner">
+        <div class="emoji">🎉🏆🎉</div>
+        <div class="text">PERFECT DAY! You're a superstar!</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="nav-tabs">
+        <div class="nav-tab active" data-tab="milestones" onclick="switchTab('milestones')">🏅 Milestones</div>
+        <div class="nav-tab" data-tab="calendar" onclick="switchTab('calendar')">📅 Calendar</div>
+        <div class="nav-tab" data-tab="stats" onclick="switchTab('stats')">📊 Stats</div>
+    </div>
+
+    <!-- Milestones Tab -->
+    <div id="tab-milestones" class="tab-content">
+        <div class="streak-display">
+            <span class="flame">🔥</span>
+            <span class="count" id="streak-count">0</span>
+            <span class="label">day streak!</span>
+        </div>
+        <div class="milestones" id="milestones-list"></div>
+    </div>
+
+    <!-- Calendar Tab -->
+    <div id="tab-calendar" class="tab-content" style="display:none">
+        <div id="calendar"></div>
+    </div>
+
+    <!-- Stats Tab -->
+    <div id="tab-stats" class="tab-content" style="display:none">
+        <div id="stats-content"></div>
+    </div>
+
+    <!-- Settings -->
+    <div class="settings-bar">
+        <button class="settings-btn" onclick="showCodeInfo()">📋 Family Code</button>
+        <button class="settings-btn" onclick="logout()">🔄 Switch Family</button>
+    </div>
+</div>
+
+<!-- External Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+<!-- ============================================================ -->
+<!--  FIREBASE SETUP (optional — enables cross-device sync)       -->
+<!--                                                               -->
+<!--  1. Go to https://console.firebase.google.com                 -->
+<!--  2. Create a new project (any name, e.g. "star-tracker")      -->
+<!--  3. In the project, go to "Realtime Database" → Create        -->
+<!--     Choose "Start in test mode" for now                       -->
+<!--  4. Go to Project Settings → General → Your Apps → Web (</>)  -->
+<!--  5. Register app, copy the firebaseConfig object              -->
+<!--  6. Paste it below replacing the placeholder values           -->
+<!--                                                               -->
+<!--  Without Firebase the app works fine on one device via        -->
+<!--  localStorage. Firebase adds cross-device sync.               -->
+<!-- ============================================================ -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+<script>
+// ==================== FIREBASE CONFIG ====================
+// Replace these with your Firebase project values (see instructions above)
+const FIREBASE_CONFIG = {
+    apiKey: "",
+    authDomain: "",
+    databaseURL: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
+};
+
+// ==================== STATE ====================
+let state = {
+    familyCode: "",
+    entries: {},
+    viewingDate: todayStr()
+};
+
+let firebaseReady = false;
+let dbRef = null;
+
+// ==================== DATE HELPERS ====================
+function todayStr() {
+    return new Date().toISOString().slice(0, 10);
+}
+
+function dateFromStr(s) {
+    const [y, m, d] = s.split("-").map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function formatDate(s) {
+    const d = dateFromStr(s);
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+}
+
+function formatShortDate(s) {
+    const d = dateFromStr(s);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function addDays(dateStr, n) {
+    const d = dateFromStr(dateStr);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(a, b) {
+    return Math.round((dateFromStr(b) - dateFromStr(a)) / 86400000);
+}
+
+// ==================== PERSISTENCE ====================
+function saveLocal() {
+    localStorage.setItem("star-tracker-" + state.familyCode, JSON.stringify(state.entries));
+    localStorage.setItem("star-tracker-code", state.familyCode);
+}
+
+function loadLocal() {
+    const code = localStorage.getItem("star-tracker-code");
+    if (code) {
+        state.familyCode = code;
+        const data = localStorage.getItem("star-tracker-" + code);
+        if (data) state.entries = JSON.parse(data);
+        return true;
+    }
+    return false;
+}
+
+function initFirebase() {
+    if (!FIREBASE_CONFIG.apiKey || !FIREBASE_CONFIG.databaseURL) {
+        updateSyncBanner(false);
+        return;
+    }
+    try {
+        firebase.initializeApp(FIREBASE_CONFIG);
+        firebaseReady = true;
+        listenToFirebase();
+    } catch (e) {
+        console.warn("Firebase init failed:", e);
+        updateSyncBanner(false);
+    }
+}
+
+function listenToFirebase() {
+    if (!firebaseReady || !state.familyCode) return;
+    if (dbRef) dbRef.off();
+    dbRef = firebase.database().ref("families/" + state.familyCode + "/entries");
+    dbRef.on("value", snap => {
+        const data = snap.val();
+        if (data) {
+            state.entries = data;
+            saveLocal();
+            renderAll();
+        }
+        updateSyncBanner(true);
+    });
+}
+
+function pushToFirebase() {
+    if (!firebaseReady || !state.familyCode) return;
+    firebase.database().ref("families/" + state.familyCode + "/entries").set(state.entries);
+}
+
+function updateSyncBanner(connected) {
+    const el = document.getElementById("sync-banner");
+    if (!FIREBASE_CONFIG.apiKey) {
+        el.className = "sync-banner offline";
+        el.textContent = "📱 Local only — add Firebase config for cross-device sync";
+        el.style.display = "block";
+    } else if (connected) {
+        el.className = "sync-banner synced";
+        el.textContent = "☁️ Synced across devices";
+        el.style.display = "block";
+        setTimeout(() => { el.style.display = "none"; }, 3000);
+    } else {
+        el.className = "sync-banner offline";
+        el.textContent = "📴 Offline — changes saved locally";
+        el.style.display = "block";
+    }
+}
+
+// ==================== FAMILY CODE ====================
+function generateCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let code = "";
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    document.getElementById("code-input").value = code;
+}
+
+function joinFamily() {
+    const input = document.getElementById("code-input");
+    const errEl = document.getElementById("setup-error");
+    const code = input.value.trim().toUpperCase();
+    if (code.length === 0) {
+        errEl.textContent = "Type a code or tap 'Create New Code' below";
+        input.style.borderColor = "#f44336";
+        setTimeout(() => input.style.borderColor = "var(--purple)", 1500);
+        return;
+    }
+    if (code.length < 3) {
+        errEl.textContent = "Code must be at least 3 characters";
+        input.style.borderColor = "#f44336";
+        setTimeout(() => input.style.borderColor = "var(--purple)", 1500);
+        return;
+    }
+    errEl.textContent = "";
+    state.familyCode = code;
+    state.entries = {};
+    saveLocal();
+    showApp();
+}
+
+function showCodeInfo() {
+    alert("Your family code is: " + state.familyCode + "\n\nUse this same code on another phone to sync data.");
+}
+
+function logout() {
+    if (dbRef) dbRef.off();
+    dbRef = null;
+    state.familyCode = "";
+    state.entries = {};
+    localStorage.removeItem("star-tracker-code");
+    document.getElementById("app").style.display = "none";
+    document.getElementById("setup-screen").style.display = "flex";
+}
+
+// ==================== CHECK-IN LOGIC ====================
+function toggleCheckin(field) {
+    const date = state.viewingDate;
+    if (!state.entries[date]) state.entries[date] = {};
+
+    const wasActive = state.entries[date][field];
+    state.entries[date][field] = !wasActive;
+
+    if (Object.values(state.entries[date]).every(v => !v)) {
+        delete state.entries[date];
+    }
+
+    saveLocal();
+    pushToFirebase();
+    renderCheckin();
+    renderMilestones();
+
+    if (!wasActive) {
+        triggerConfetti(field);
+        const entry = state.entries[date];
+        if (entry && entry.dry && entry.coop && entry.self) {
+            setTimeout(() => triggerPerfectDay(), 300);
+        }
+    }
+}
+
+// ==================== CONFETTI ====================
+function triggerConfetti(field) {
+    const colors = {
+        dry: ["#43a047", "#81c784", "#a5d6a7"],
+        coop: ["#fb8c00", "#ffb74d", "#ffe0b2"],
+        self: ["#e91e63", "#f06292", "#f8bbd0"]
+    };
+    confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.7 },
+        colors: colors[field] || ["#7c4dff"],
+        disableForReducedMotion: true
+    });
+}
+
+function triggerPerfectDay() {
+    const duration = 2000;
+    const end = Date.now() + duration;
+    const gold = ["#ffd700", "#ffab00", "#fff9c4", "#ff6f00"];
+
+    (function frame() {
+        confetti({
+            particleCount: 4,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0 },
+            colors: gold,
+            disableForReducedMotion: true
+        });
+        confetti({
+            particleCount: 4,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1 },
+            colors: gold,
+            disableForReducedMotion: true
+        });
+        if (Date.now() < end) requestAnimationFrame(frame);
+    })();
+}
+
+// ==================== DATE NAVIGATION ====================
+function changeDay(delta) {
+    state.viewingDate = addDays(state.viewingDate, delta);
+    renderCheckin();
+}
+
+function goToToday() {
+    state.viewingDate = todayStr();
+    renderCheckin();
+}
+
+// ==================== RENDERING ====================
+function renderAll() {
+    renderCheckin();
+    renderMilestones();
+    renderCalendar();
+    renderStats();
+}
+
+function renderCheckin() {
+    const date = state.viewingDate;
+    const entry = state.entries[date] || {};
+    const isToday = date === todayStr();
+
+    document.getElementById("header-date").textContent = formatDate(todayStr());
+    document.getElementById("header-code").textContent = "Code: " + state.familyCode;
+
+    document.getElementById("day-label").textContent = isToday ? "Today" : formatShortDate(date);
+    document.getElementById("today-btn").style.display = isToday ? "none" : "block";
+    document.getElementById("next-day").disabled = date >= todayStr();
+
+    const fields = [
+        { key: "dry", id: "card-dry", cls: "active-green" },
+        { key: "coop", id: "card-coop", cls: "active-orange" },
+        { key: "self", id: "card-self", cls: "active-pink" }
+    ];
+
+    fields.forEach(f => {
+        const el = document.getElementById(f.id);
+        el.classList.toggle(f.cls, !!entry[f.key]);
+    });
+
+    const banner = document.getElementById("perfect-banner");
+    banner.classList.toggle("show", !!(entry.dry && entry.coop && entry.self));
+}
+
+function renderMilestones() {
+    const streak = calcStreak();
+    document.getElementById("streak-count").textContent = streak;
+
+    const milestones = [
+        { days: 3, icon: "⭐", name: "3-Day Star", desc: "3 good days in a row!" },
+        { days: 7, icon: "🌟", name: "Week Warrior", desc: "A whole week — amazing!" },
+        { days: 14, icon: "💫", name: "Two-Week Champ", desc: "14 days of greatness!" },
+        { days: 30, icon: "🏆", name: "Monthly Master", desc: "30 days — legendary!" },
+        { days: 60, icon: "👑", name: "Royal Champion", desc: "60 days — incredible!" },
+        { days: 100, icon: "🦄", name: "Super Unicorn", desc: "100 days — unbelievable!" }
+    ];
+
+    const bestStreak = calcBestStreak();
+    const html = milestones.map(m => {
+        const unlocked = bestStreak >= m.days;
+        const progress = Math.min(100, Math.round((streak / m.days) * 100));
+        return `
+            <div class="milestone ${unlocked ? 'unlocked' : ''}">
+                <div class="milestone-icon">${m.icon}</div>
+                <div class="milestone-info">
+                    <h4>${m.name}</h4>
+                    <p>${m.desc}</p>
+                    ${!unlocked ? `<div class="milestone-progress">
+                        <div class="milestone-progress-bar" style="width:${progress}%"></div>
+                    </div>` : ''}
+                </div>
+                <div class="milestone-status">${unlocked ? '🏅' : `${Math.min(streak, m.days)}/${m.days}`}</div>
+            </div>
+        `;
+    }).join("");
+
+    document.getElementById("milestones-list").innerHTML = html;
+}
+
+function renderCalendar() {
+    const today = dateFromStr(todayStr());
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const startDay = startOfMonth.getDay();
+
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    let html = '<div class="calendar-grid">';
+    dayNames.forEach(d => { html += `<div class="cal-header">${d}</div>`; });
+
+    for (let i = 0; i < startDay; i++) html += '<div class="cal-day empty"></div>';
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const entry = state.entries[dateStr] || {};
+        const count = (entry.dry ? 1 : 0) + (entry.coop ? 1 : 0) + (entry.self ? 1 : 0);
+        const isToday = dateStr === todayStr();
+        const isFuture = dateStr > todayStr();
+        const isPerfect = count === 3;
+
+        let cls = "cal-day";
+        if (isToday) cls += " today";
+        if (isFuture) cls += " future";
+        if (isPerfect) cls += " perfect";
+        else if (count > 0) cls += " has-some";
+
+        const stars = count === 3 ? "🌟" : count > 0 ? "⭐".repeat(count) : "";
+
+        html += `<div class="${cls}" onclick="jumpToDay('${dateStr}')">
+            <span>${d}</span>
+            <span class="stars">${stars}</span>
+        </div>`;
+    }
+
+    html += '</div>';
+    document.getElementById("calendar").innerHTML = html;
+}
+
+function jumpToDay(dateStr) {
+    if (dateStr > todayStr()) return;
+    state.viewingDate = dateStr;
+    renderCheckin();
+}
+
+function renderStats() {
+    const periods = [
+        { label: "Last 3 Days", days: 3 },
+        { label: "Last 7 Days", days: 7 },
+        { label: "Last 14 Days", days: 14 },
+        { label: "Last 30 Days", days: 30 }
+    ];
+
+    let html = '';
+    periods.forEach(p => {
+        const stats = calcPeriodStats(p.days);
+        html += `<div class="section-title">${p.label}</div>`;
+        html += `<div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-number">${stats.dry}/${stats.total}</div>
+                <div class="stat-label">🏫 Dry at School</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${stats.coop}/${stats.total}</div>
+                <div class="stat-label">🤝 Cooperated</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">${stats.self}/${stats.total}</div>
+                <div class="stat-label">🌟 By Myself</div>
+            </div>
+        </div>`;
+    });
+
+    document.getElementById("stats-content").innerHTML = html;
+}
+
+// ==================== STREAK CALCULATIONS ====================
+function calcStreak() {
+    let streak = 0;
+    let date = todayStr();
+    const entry = state.entries[date];
+    if (!entry || !(entry.dry || entry.coop || entry.self)) {
+        date = addDays(date, -1);
+    }
+
+    while (true) {
+        const e = state.entries[date];
+        if (e && (e.dry || e.coop || e.self)) {
+            streak++;
+            date = addDays(date, -1);
+        } else {
+            break;
+        }
+    }
+    return streak;
+}
+
+function calcBestStreak() {
+    const dates = Object.keys(state.entries).filter(d => {
+        const e = state.entries[d];
+        return e && (e.dry || e.coop || e.self);
+    }).sort();
+
+    if (dates.length === 0) return 0;
+
+    let best = 1, current = 1;
+    for (let i = 1; i < dates.length; i++) {
+        if (daysBetween(dates[i-1], dates[i]) === 1) {
+            current++;
+            best = Math.max(best, current);
+        } else {
+            current = 1;
+        }
+    }
+    return Math.max(best, current);
+}
+
+function calcPeriodStats(days) {
+    let dry = 0, coop = 0, self = 0, total = 0;
+    for (let i = 0; i < days; i++) {
+        const d = addDays(todayStr(), -i);
+        total++;
+        const e = state.entries[d];
+        if (e) {
+            if (e.dry) dry++;
+            if (e.coop) coop++;
+            if (e.self) self++;
+        }
+    }
+    return { dry, coop, self, total };
+}
+
+// ==================== TAB SWITCHING ====================
+function switchTab(tab) {
+    document.querySelectorAll(".nav-tab").forEach(el => {
+        el.classList.toggle("active", el.dataset.tab === tab);
+    });
+    document.querySelectorAll(".tab-content").forEach(el => {
+        el.style.display = "none";
+    });
+    document.getElementById("tab-" + tab).style.display = "block";
+
+    if (tab === "calendar") renderCalendar();
+    if (tab === "stats") renderStats();
+}
+
+// ==================== INIT ====================
+function showApp() {
+    document.getElementById("setup-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
+    if (firebaseReady) listenToFirebase();
+    else updateSyncBanner(false);
+    renderAll();
+}
+
+function init() {
+    initFirebase();
+    if (loadLocal()) {
+        showApp();
+    }
+}
+
+init();
+</script>
+
+</body>
+</html>
