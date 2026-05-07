@@ -599,7 +599,8 @@
 <div id="app">
     <div class="header">
         <div class="header-title">⭐ Super Star Tracker</div>
-        <div style="font-size:0.8rem; margin-top:4px;"><a href="../routine-tracker/" style="color:var(--purple); text-decoration:none;">→ Switch to Routine Tracker</a></div>
+        <div id="header-kid" style="font-size:1rem; font-weight:700; color:var(--purple); margin-top:2px;"></div>
+        <div style="font-size:0.8rem; margin-top:4px;"><a id="cross-link" href="../routine-tracker/" style="color:var(--purple); text-decoration:none;">→ Switch to Routine Tracker</a></div>
         <div class="header-date" id="header-date"></div>
         <div class="header-code" id="header-code" onclick="showCodeInfo()"></div>
     </div>
@@ -705,7 +706,7 @@
     <!-- Settings -->
     <div class="settings-bar">
         <button class="settings-btn" onclick="showCodeInfo()">📋 Family Code</button>
-        <button class="settings-btn" onclick="logout()">🔄 Switch Family</button>
+        <button class="settings-btn" id="logout-btn" onclick="logout()">🔄 Switch Family</button>
     </div>
 </div>
 
@@ -743,6 +744,10 @@ const FIREBASE_CONFIG = {
 };
 
 // ==================== STATE ====================
+const URL_PARAMS = new URLSearchParams(location.search);
+const KID = URL_PARAMS.get('kid');
+const CODE_KEY = KID ? "family-code-" + KID : "star-tracker-code";
+
 let state = {
     familyCode: "",
     entries: {},
@@ -785,11 +790,11 @@ function daysBetween(a, b) {
 // ==================== PERSISTENCE ====================
 function saveLocal() {
     localStorage.setItem("star-tracker-" + state.familyCode, JSON.stringify(state.entries));
-    localStorage.setItem("star-tracker-code", state.familyCode);
+    localStorage.setItem(CODE_KEY, state.familyCode);
 }
 
 function loadLocal() {
-    const code = localStorage.getItem("star-tracker-code");
+    const code = localStorage.getItem(CODE_KEY);
     if (code) {
         state.familyCode = code;
         const data = localStorage.getItem("star-tracker-" + code);
@@ -888,11 +893,12 @@ function showCodeInfo() {
 }
 
 function logout() {
+    if (KID) { location.href = "../trackers/"; return; }
     if (dbRef) dbRef.off();
     dbRef = null;
     state.familyCode = "";
     state.entries = {};
-    localStorage.removeItem("star-tracker-code");
+    localStorage.removeItem(CODE_KEY);
     document.getElementById("app").style.display = "none";
     document.getElementById("setup-screen").style.display = "flex";
 }
@@ -1225,6 +1231,12 @@ function switchTab(tab) {
 function showApp() {
     document.getElementById("setup-screen").style.display = "none";
     document.getElementById("app").style.display = "block";
+    if (KID) {
+        const name = KID.charAt(0).toUpperCase() + KID.slice(1);
+        document.getElementById("header-kid").textContent = "For " + name;
+        document.getElementById("cross-link").href = "../routine-tracker/?kid=" + KID;
+        document.getElementById("logout-btn").textContent = "← Back to Hub";
+    }
     if (firebaseReady) listenToFirebase();
     else updateSyncBanner(false);
     renderAll();
@@ -1232,6 +1244,11 @@ function showApp() {
 
 function init() {
     initFirebase();
+    if (KID) {
+        const name = KID.charAt(0).toUpperCase() + KID.slice(1);
+        document.querySelector(".setup-title").textContent = "⭐ " + name + "'s Tracker";
+        document.querySelector(".setup-subtitle").textContent = "Set up " + name + "'s family code";
+    }
     if (loadLocal()) {
         showApp();
     }

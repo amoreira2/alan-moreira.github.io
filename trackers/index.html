@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#7c4dff">
+    <title>👨‍👩‍👧‍👧 Family Trackers</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👨‍👩‍👧‍👧</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f3e8ff, #fce4ec);
+            min-height: 100dvh;
+            padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+        }
+        .hub-title {
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .hub-sub {
+            text-align: center;
+            color: #888;
+            margin-bottom: 32px;
+            font-size: 1rem;
+        }
+        .kid-btn {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            width: 100%;
+            max-width: 380px;
+            padding: 22px 24px;
+            margin-bottom: 16px;
+            border-radius: 24px;
+            background: white;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+            text-decoration: none;
+            color: inherit;
+            border: 3px solid transparent;
+            transition: transform 0.15s, box-shadow 0.2s;
+        }
+        .kid-btn:active { transform: scale(0.97); }
+        .kid-btn .emoji {
+            font-size: 3rem;
+            width: 70px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 20px;
+            flex-shrink: 0;
+        }
+        .kid-btn .info { flex: 1; }
+        .kid-btn .name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+        .kid-btn .type {
+            font-size: 0.95rem;
+            color: #888;
+            margin-top: 4px;
+            font-weight: 600;
+        }
+        .kid-btn .arrow {
+            font-size: 1.5rem;
+            color: #ccc;
+        }
+
+        .julia-routine .emoji { background: #e3f2fd; }
+        .julia-routine { border-color: #1e88e5; }
+        .julia-routine .name { color: #1e88e5; }
+
+        .laura-routine .emoji { background: #fce4ec; }
+        .laura-routine { border-color: #e91e63; }
+        .laura-routine .name { color: #e91e63; }
+
+        .laura-potty .emoji { background: #fff9c4; }
+        .laura-potty { border-color: #ffab00; }
+        .laura-potty .name { color: #ff6f00; }
+
+        .footer {
+            margin-top: 24px;
+            text-align: center;
+            color: #aaa;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="hub-title">👨‍👩‍👧‍👧 Family Trackers</div>
+    <div class="hub-sub">Tap a tracker to start!</div>
+
+    <a class="kid-btn julia-routine" href="../routine-tracker/?kid=julia">
+        <div class="emoji">🌈</div>
+        <div class="info">
+            <div class="name">Julia</div>
+            <div class="type">Daily Routine</div>
+        </div>
+        <div class="arrow">›</div>
+    </a>
+
+    <a class="kid-btn laura-routine" href="../routine-tracker/?kid=laura">
+        <div class="emoji">🌈</div>
+        <div class="info">
+            <div class="name">Laura</div>
+            <div class="type">Daily Routine</div>
+        </div>
+        <div class="arrow">›</div>
+    </a>
+
+    <a class="kid-btn laura-potty" href="../potty-tracker/?kid=laura">
+        <div class="emoji">⭐</div>
+        <div class="info">
+            <div class="name">Laura</div>
+            <div class="type">Superstar Tracker</div>
+        </div>
+        <div class="arrow">›</div>
+    </a>
+
+    <div class="footer">Each kid has their own private code & data.</div>
+</body>
+</html>
