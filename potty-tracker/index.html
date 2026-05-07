@@ -14,6 +14,10 @@
             --card-bg: #ffffff;
             --green: #43a047;
             --green-light: #e8f5e9;
+            --blue: #1e88e5;
+            --blue-light: #e3f2fd;
+            --teal: #00897b;
+            --teal-light: #e0f2f1;
             --orange: #fb8c00;
             --orange-light: #fff3e0;
             --pink: #e91e63;
@@ -181,6 +185,8 @@
         .checkin-card:active { transform: scale(0.97); }
 
         .checkin-card.active-green { border-color: var(--green); background: var(--green-light); }
+        .checkin-card.active-blue { border-color: var(--blue); background: var(--blue-light); }
+        .checkin-card.active-teal { border-color: var(--teal); background: var(--teal-light); }
         .checkin-card.active-orange { border-color: var(--orange); background: var(--orange-light); }
         .checkin-card.active-pink { border-color: var(--pink); background: var(--pink-light); }
 
@@ -196,13 +202,13 @@
             transition: transform 0.3s;
         }
 
-        .checkin-card.active-green .checkin-icon,
-        .checkin-card.active-orange .checkin-icon,
-        .checkin-card.active-pink .checkin-icon {
+        .checkin-card[class*="active-"] .checkin-icon {
             animation: iconPop 0.4s ease;
         }
 
         .bg-green { background: var(--green-light); }
+        .bg-blue { background: var(--blue-light); }
+        .bg-teal { background: var(--teal-light); }
         .bg-orange { background: var(--orange-light); }
         .bg-pink { background: var(--pink-light); }
 
@@ -217,10 +223,64 @@
             transform: scale(0.5);
         }
 
-        .checkin-card[class*="active"] .checkin-check {
+        .checkin-card[class*="active-"] .checkin-check {
             opacity: 1;
             transform: scale(1);
         }
+
+        .checkin-counter {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .counter-num {
+            font-size: 2rem;
+            font-weight: 800;
+            min-width: 40px;
+            text-align: center;
+            color: var(--text-light);
+            transition: color 0.2s, transform 0.3s;
+        }
+
+        .checkin-card[class*="active-"] .counter-num {
+            animation: numPop 0.4s ease;
+        }
+
+        .checkin-card.active-orange .counter-num { color: var(--orange); }
+        .checkin-card.active-pink .counter-num { color: var(--pink); }
+
+        @keyframes numPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.4); }
+            100% { transform: scale(1); }
+        }
+
+        .counter-reset {
+            background: rgba(0,0,0,0.06);
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-light);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .checkin-card[class*="active-"] .counter-reset {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .counter-reset:active { transform: scale(0.9); }
 
         @keyframes iconPop {
             0% { transform: scale(1); }
@@ -566,22 +626,46 @@
             <div class="checkin-check">✅</div>
         </div>
 
-        <div class="checkin-card" id="card-coop" onclick="toggleCheckin('coop')">
-            <div class="checkin-icon bg-orange">🤝</div>
+        <div class="checkin-card" id="card-dryHome" onclick="toggleCheckin('dryHome')">
+            <div class="checkin-icon bg-blue">🏠</div>
             <div class="checkin-text">
-                <h3>I Cooperated!</h3>
-                <p>Went when asked after school</p>
+                <h3>I Stayed Dry at Home!</h3>
+                <p>No accidents at home</p>
             </div>
             <div class="checkin-check">✅</div>
         </div>
 
-        <div class="checkin-card" id="card-self" onclick="toggleCheckin('self')">
+        <div class="checkin-card" id="card-clean" onclick="toggleCheckin('clean')">
+            <div class="checkin-icon bg-teal">🧼</div>
+            <div class="checkin-text">
+                <h3>I Cleaned Myself!</h3>
+                <p>Wiped all on my own</p>
+            </div>
+            <div class="checkin-check">✅</div>
+        </div>
+
+        <div class="checkin-card" id="card-coop" onclick="incrementCounter('coop')">
+            <div class="checkin-icon bg-orange">🤝</div>
+            <div class="checkin-text">
+                <h3>I Cooperated!</h3>
+                <p>Went when asked — tap each time</p>
+            </div>
+            <div class="checkin-counter">
+                <span class="counter-num" id="count-coop">0</span>
+                <button class="counter-reset" onclick="resetCounter(event,'coop')" aria-label="Reset">↺</button>
+            </div>
+        </div>
+
+        <div class="checkin-card" id="card-self" onclick="incrementCounter('self')">
             <div class="checkin-icon bg-pink">🌟</div>
             <div class="checkin-text">
                 <h3>I Went by Myself!</h3>
-                <p>All on my own — no reminders</p>
+                <p>No reminders — tap each time</p>
             </div>
-            <div class="checkin-check">✅</div>
+            <div class="checkin-counter">
+                <span class="counter-num" id="count-self">0</span>
+                <button class="counter-reset" onclick="resetCounter(event,'self')" aria-label="Reset">↺</button>
+            </div>
         </div>
     </div>
 
@@ -813,16 +897,25 @@ function logout() {
 }
 
 // ==================== CHECK-IN LOGIC ====================
+const BOOL_FIELDS = ["dry", "dryHome", "clean"];
+const COUNTER_FIELDS = ["coop", "self"];
+
+function entryIsEmpty(e) {
+    if (!e) return true;
+    return BOOL_FIELDS.every(f => !e[f]) && COUNTER_FIELDS.every(f => !e[f]);
+}
+
+function isPerfectDay(e) {
+    if (!e) return false;
+    return BOOL_FIELDS.every(f => e[f]) && COUNTER_FIELDS.every(f => (e[f] || 0) >= 1);
+}
+
 function toggleCheckin(field) {
     const date = state.viewingDate;
     if (!state.entries[date]) state.entries[date] = {};
-
     const wasActive = state.entries[date][field];
     state.entries[date][field] = !wasActive;
-
-    if (Object.values(state.entries[date]).every(v => !v)) {
-        delete state.entries[date];
-    }
+    if (entryIsEmpty(state.entries[date])) delete state.entries[date];
 
     saveLocal();
     pushToFirebase();
@@ -831,17 +924,44 @@ function toggleCheckin(field) {
 
     if (!wasActive) {
         triggerConfetti(field);
-        const entry = state.entries[date];
-        if (entry && entry.dry && entry.coop && entry.self) {
-            setTimeout(() => triggerPerfectDay(), 300);
-        }
+        if (isPerfectDay(state.entries[date])) setTimeout(triggerPerfectDay, 300);
     }
+}
+
+function incrementCounter(field) {
+    const date = state.viewingDate;
+    if (!state.entries[date]) state.entries[date] = {};
+    const prev = state.entries[date][field] || 0;
+    state.entries[date][field] = prev + 1;
+
+    saveLocal();
+    pushToFirebase();
+    renderCheckin();
+    renderMilestones();
+
+    triggerConfetti(field);
+    if (isPerfectDay(state.entries[date])) setTimeout(triggerPerfectDay, 300);
+}
+
+function resetCounter(ev, field) {
+    ev.stopPropagation();
+    const date = state.viewingDate;
+    if (!state.entries[date]) return;
+    delete state.entries[date][field];
+    if (entryIsEmpty(state.entries[date])) delete state.entries[date];
+
+    saveLocal();
+    pushToFirebase();
+    renderCheckin();
+    renderMilestones();
 }
 
 // ==================== CONFETTI ====================
 function triggerConfetti(field) {
     const colors = {
         dry: ["#43a047", "#81c784", "#a5d6a7"],
+        dryHome: ["#1e88e5", "#64b5f6", "#90caf9"],
+        clean: ["#00897b", "#4db6ac", "#80cbc4"],
         coop: ["#fb8c00", "#ffb74d", "#ffe0b2"],
         self: ["#e91e63", "#f06292", "#f8bbd0"]
     };
@@ -911,19 +1031,26 @@ function renderCheckin() {
     document.getElementById("today-btn").style.display = isToday ? "none" : "block";
     document.getElementById("next-day").disabled = date >= todayStr();
 
-    const fields = [
+    const boolCards = [
         { key: "dry", id: "card-dry", cls: "active-green" },
+        { key: "dryHome", id: "card-dryHome", cls: "active-blue" },
+        { key: "clean", id: "card-clean", cls: "active-teal" }
+    ];
+    boolCards.forEach(f => {
+        document.getElementById(f.id).classList.toggle(f.cls, !!entry[f.key]);
+    });
+
+    const counterCards = [
         { key: "coop", id: "card-coop", cls: "active-orange" },
         { key: "self", id: "card-self", cls: "active-pink" }
     ];
-
-    fields.forEach(f => {
-        const el = document.getElementById(f.id);
-        el.classList.toggle(f.cls, !!entry[f.key]);
+    counterCards.forEach(f => {
+        const count = entry[f.key] || 0;
+        document.getElementById(f.id).classList.toggle(f.cls, count > 0);
+        document.getElementById("count-" + f.key).textContent = count;
     });
 
-    const banner = document.getElementById("perfect-banner");
-    banner.classList.toggle("show", !!(entry.dry && entry.coop && entry.self));
+    document.getElementById("perfect-banner").classList.toggle("show", isPerfectDay(entry));
 }
 
 function renderMilestones() {
@@ -976,18 +1103,19 @@ function renderCalendar() {
     for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const entry = state.entries[dateStr] || {};
-        const count = (entry.dry ? 1 : 0) + (entry.coop ? 1 : 0) + (entry.self ? 1 : 0);
+        const count = BOOL_FIELDS.reduce((n,f) => n + (entry[f] ? 1 : 0), 0)
+                    + COUNTER_FIELDS.reduce((n,f) => n + ((entry[f] || 0) > 0 ? 1 : 0), 0);
         const isToday = dateStr === todayStr();
         const isFuture = dateStr > todayStr();
-        const isPerfect = count === 3;
+        const perfect = isPerfectDay(entry);
 
         let cls = "cal-day";
         if (isToday) cls += " today";
         if (isFuture) cls += " future";
-        if (isPerfect) cls += " perfect";
+        if (perfect) cls += " perfect";
         else if (count > 0) cls += " has-some";
 
-        const stars = count === 3 ? "🌟" : count > 0 ? "⭐".repeat(count) : "";
+        const stars = perfect ? "🌟" : count > 0 ? "⭐" : "";
 
         html += `<div class="${cls}" onclick="jumpToDay('${dateStr}')">
             <span>${d}</span>
@@ -1015,21 +1143,17 @@ function renderStats() {
 
     let html = '';
     periods.forEach(p => {
-        const stats = calcPeriodStats(p.days);
+        const s = calcPeriodStats(p.days);
         html += `<div class="section-title">${p.label}</div>`;
         html += `<div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-number">${stats.dry}/${stats.total}</div>
-                <div class="stat-label">🏫 Dry at School</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">${stats.coop}/${stats.total}</div>
-                <div class="stat-label">🤝 Cooperated</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number">${stats.self}/${stats.total}</div>
-                <div class="stat-label">🌟 By Myself</div>
-            </div>
+            <div class="stat-card"><div class="stat-number">${s.dry}/${s.total}</div><div class="stat-label">🏫 Dry School</div></div>
+            <div class="stat-card"><div class="stat-number">${s.dryHome}/${s.total}</div><div class="stat-label">🏠 Dry Home</div></div>
+            <div class="stat-card"><div class="stat-number">${s.clean}/${s.total}</div><div class="stat-label">🧼 Cleaned</div></div>
+        </div>`;
+        html += `<div class="stats-row">
+            <div class="stat-card"><div class="stat-number">${s.coop}</div><div class="stat-label">🤝 Cooperated</div></div>
+            <div class="stat-card"><div class="stat-number">${s.self}</div><div class="stat-label">🌟 By Self</div></div>
+            <div class="stat-card"><div class="stat-number">${s.perfectDays}</div><div class="stat-label">🏆 Perfect Days</div></div>
         </div>`;
     });
 
@@ -1037,31 +1161,23 @@ function renderStats() {
 }
 
 // ==================== STREAK CALCULATIONS ====================
+function entryHasAny(e) {
+    return !!e && (BOOL_FIELDS.some(f => e[f]) || COUNTER_FIELDS.some(f => (e[f] || 0) > 0));
+}
+
 function calcStreak() {
     let streak = 0;
     let date = todayStr();
-    const entry = state.entries[date];
-    if (!entry || !(entry.dry || entry.coop || entry.self)) {
+    if (!entryHasAny(state.entries[date])) date = addDays(date, -1);
+    while (entryHasAny(state.entries[date])) {
+        streak++;
         date = addDays(date, -1);
-    }
-
-    while (true) {
-        const e = state.entries[date];
-        if (e && (e.dry || e.coop || e.self)) {
-            streak++;
-            date = addDays(date, -1);
-        } else {
-            break;
-        }
     }
     return streak;
 }
 
 function calcBestStreak() {
-    const dates = Object.keys(state.entries).filter(d => {
-        const e = state.entries[d];
-        return e && (e.dry || e.coop || e.self);
-    }).sort();
+    const dates = Object.keys(state.entries).filter(d => entryHasAny(state.entries[d])).sort();
 
     if (dates.length === 0) return 0;
 
@@ -1078,18 +1194,16 @@ function calcBestStreak() {
 }
 
 function calcPeriodStats(days) {
-    let dry = 0, coop = 0, self = 0, total = 0;
+    const stats = { dry: 0, dryHome: 0, clean: 0, coop: 0, self: 0, total: days, perfectDays: 0 };
     for (let i = 0; i < days; i++) {
         const d = addDays(todayStr(), -i);
-        total++;
         const e = state.entries[d];
-        if (e) {
-            if (e.dry) dry++;
-            if (e.coop) coop++;
-            if (e.self) self++;
-        }
+        if (!e) continue;
+        BOOL_FIELDS.forEach(f => { if (e[f]) stats[f]++; });
+        COUNTER_FIELDS.forEach(f => { stats[f] += (e[f] || 0); });
+        if (isPerfectDay(e)) stats.perfectDays++;
     }
-    return { dry, coop, self, total };
+    return stats;
 }
 
 // ==================== TAB SWITCHING ====================
