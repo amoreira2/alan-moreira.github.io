@@ -759,7 +759,11 @@ let dbRef = null;
 
 // ==================== DATE HELPERS ====================
 function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    // Return today's date in Eastern Time (America/New_York) as YYYY-MM-DD
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York',
+        year: 'numeric', month: '2-digit', day: '2-digit'
+    }).format(new Date());
 }
 
 function dateFromStr(s) {
