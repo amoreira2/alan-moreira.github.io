@@ -121,11 +121,16 @@ header .title{font-size:1.15rem;font-weight:800;flex:1}
 .sheet-hint{color:var(--faint);font-size:.72rem;text-align:center;padding:2px 0 6px}
 
 /* toast */
+/* Hiding this with translateY(140%) alone left it on screen: the toast is
+   ~50px tall but sits 100px above the bottom, so shifting it down by 140%
+   of its own height moved it 70px and stopped well short. It has to be
+   taken out of play explicitly rather than slid at something. */
 #toast{position:fixed;left:16px;right:16px;bottom:calc(100px + env(safe-area-inset-bottom));
   background:var(--ink);color:var(--bg);border-radius:15px;padding:13px 16px;
   display:flex;align-items:center;gap:12px;z-index:70;
-  transform:translateY(140%);transition:transform .2s;box-shadow:0 8px 28px rgba(0,0,0,.4)}
-#toast.show{transform:translateY(0)}
+  opacity:0;visibility:hidden;pointer-events:none;transform:translateY(20px);
+  transition:transform .2s,opacity .2s,visibility .2s;box-shadow:0 8px 28px rgba(0,0,0,.4)}
+#toast.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)}
 #toast .msg{flex:1;font-size:.88rem;font-weight:600}
 #toast .undo{font-weight:800;font-size:.88rem;color:#c2410c;padding:4px 6px}
 </style>

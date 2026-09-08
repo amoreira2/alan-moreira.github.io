@@ -70,7 +70,7 @@ html[data-mood="down"] #blooms,html[data-mood="insufficient"] #blooms{display:no
 .hero-inner{position:relative;z-index:2;max-width:min(92vw,1180px);
   display:flex;align-items:center;gap:clamp(20px,4vw,64px);flex-wrap:wrap-reverse}
 .hero-copy{flex:1 1 380px;min-width:0}
-.dog-wrap{flex:0 0 auto;width:clamp(140px,20vw,290px)}
+.dog-wrap{flex:0 0 auto;width:clamp(96px,20vw,290px)}
 .dog-wrap svg{width:100%;height:auto;overflow:visible}
 /* Only the improving dog moves. Everywhere else motion stops, same rule
    the rest of the page follows. */
@@ -78,6 +78,15 @@ html[data-mood="down"] #blooms,html[data-mood="insufficient"] #blooms{display:no
 html[data-mood="up"] .dog-wrap{animation:dogbob 3.4s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){html[data-mood="up"] .dog-wrap{animation:none}}
 .pcard .dog-wrap{width:74px}
+/* On a phone the hero stacks, so a big dog eats the whole first screen and
+   pushes the sentence that matters below the fold. Shrink it and let the
+   hero size to its content instead of holding 78dvh. */
+@media(max-width:760px){
+  .hero{min-height:auto;padding:4vh 7vw 7vh}
+  .hero-inner{gap:12px}
+  .dog-wrap{width:96px}
+  .eyebrow{margin-bottom:12px}
+}
 .pcard-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
 .pcard-head .nm{margin-bottom:0}
 /* em here would resolve against the 14px inherited body size, pinning the
