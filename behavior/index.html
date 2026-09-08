@@ -133,6 +133,8 @@ header .title{font-size:1.15rem;font-weight:800;flex:1}
 #toast.show{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)}
 #toast .msg{flex:1;font-size:.88rem;font-weight:600}
 #toast .undo{font-weight:800;font-size:.88rem;color:#c2410c;padding:4px 6px}
+#demo-banner{display:none;background:#f0a882;color:#2a1a12;font-size:.76rem;font-weight:800;
+  letter-spacing:.08em;text-transform:uppercase;text-align:center;padding:7px 12px}
 </style>
 </head>
 <body>
@@ -148,6 +150,7 @@ header .title{font-size:1.15rem;font-weight:800;flex:1}
 </div>
 
 <!-- ================= APP ================= -->
+<div id="demo-banner">Demo — made-up data, nothing is saved</div>
 <div id="app">
   <header>
     <div class="title">Today</div>
@@ -157,12 +160,12 @@ header .title{font-size:1.15rem;font-weight:800;flex:1}
   </header>
 
   <div class="today">
-    <a class="tcard laura" href="wall.html?kid=laura">
+    <a class="tcard laura" href="wall.html?kid=laura" id="link-laura">
       <div class="who">Laura</div>
       <div class="nums"><span class="np" id="l-pos">0</span><span class="sep">/</span><span class="nn" id="l-neg">0</span></div>
       <div class="sub">tap for her week →</div>
     </a>
-    <a class="tcard julia" href="wall.html?kid=julia">
+    <a class="tcard julia" href="wall.html?kid=julia" id="link-julia">
       <div class="who">Julia</div>
       <div class="nums"><span class="np" id="j-pos">0</span><span class="sep">/</span><span class="nn" id="j-neg">0</span></div>
       <div class="sub">tap for her week →</div>
@@ -202,8 +205,18 @@ let currentKid = localStorage.getItem("behavior-last-kid") || "laura";
 let lastLogged = null;
 let toastTimer = null;
 
+const DEMO = new URLSearchParams(location.search).get("demo");
 const code = BX.savedCode();
-if (code) {
+
+if (DEMO) {
+  // Fake data, held in memory only — BX.demo blocks every write path,
+  // so poking at this cannot touch the real log.
+  BX.seedDemo(DEMO === "1" ? "up" : DEMO);
+  BX.onChange = render;
+  document.getElementById("demo-banner").style.display = "block";
+  document.getElementById("app").style.display = "flex";
+  render();
+} else if (code) {
   start(code);
 } else {
   document.getElementById("setup").style.display = "flex";
@@ -243,6 +256,10 @@ function showCode() {
 /* ==================== RENDER ==================== */
 function render() {
   document.getElementById("dot").className = "dot" + (BX.online ? " on" : "");
+  if (DEMO) {
+    document.getElementById("link-laura").href = "wall.html?kid=laura&demo=" + DEMO;
+    document.getElementById("link-julia").href = "wall.html?kid=julia&demo=" + DEMO;
+  }
 
   const today = todayStr();
   for (const kid of ["laura", "julia"]) {
@@ -360,7 +377,7 @@ function closeSheet() {
 }
 function pickKid(kid) {
   currentKid = kid;
-  localStorage.setItem("behavior-last-kid", kid);
+  if (!DEMO) localStorage.setItem("behavior-last-kid", kid);  // demo touches nothing
   for (const k of ["laura", "julia"]) {
     document.getElementById("pill-" + k).classList.toggle("sel", k === kid);
   }

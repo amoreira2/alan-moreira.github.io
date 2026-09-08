@@ -162,6 +162,7 @@ const BX = {
 /* ---------- persistence ---------- */
 
 function cacheSave() {
+    if (BX.demo) return;   // demo data is ephemeral, never persisted
     try {
         localStorage.setItem(CACHE_PREFIX + BX.code, JSON.stringify({
             events: BX.remote, catalog: BX.catalog
@@ -264,6 +265,7 @@ function flushOutbox() {
    forget the event locally. While offline the SDK simply holds the
    callback, so the event stays in the outbox and survives a reload. */
 function writeEvent(id, ev) {
+    if (BX.demo) return;
     try {
         firebase.database()
             .ref("families/" + BX.code + "/" + DB_PATH + "/events/" + id)
@@ -317,6 +319,7 @@ BX.remove = function (id) {
     delete BX.remote[id];
     cacheSave();
     if (BX.onChange) BX.onChange();
+    if (BX.demo) return;
     try {
         firebase.database()
             .ref("families/" + BX.code + "/" + DB_PATH + "/events/" + id)
@@ -338,6 +341,7 @@ BX.addTag = function (label, pol, emoji) {
     BX.catalog[id] = tag;
     cacheSave();
     if (BX.onChange) BX.onChange();
+    if (BX.demo) return id;
     try {
         // update() on the catalog path only — can't clobber events.
         firebase.database()
@@ -609,16 +613,38 @@ BX.negativeStreak = function (kid, lookback) {
    it replaces BX.remote in memory only.
    ------------------------------------------------------------ */
 BX.seedDemo = function (kind) {
+    BX.demo = true;
     BX.catalog = JSON.parse(JSON.stringify(DEFAULT_CATALOG));
     BX.remote = {};
     BX.outbox = {};
+    BX.ready = true;
 
-    // Morning rush, after school, and the bedtime hour.
-    const HOUR_POOL = [7, 7.4, 7.8, 8.1, 15.5, 16, 16.6, 17.2, 17.8, 18.4, 19, 19.5, 20, 20.4];
+    // Give the sisters different weeks so the parents' view and each girl's
+    // own page show something distinct rather than the same chart twice.
+    const PAIR = { up: "down", down: "up", steady: "up", thin: "thin" };
+    seedKid("laura", kind, 1);
+    seedKid("julia", PAIR[kind] || "steady", 2);
+};
+
+// Morning rush, after school, and the bedtime hour.
+const HOUR_POOL = [7, 7.4, 7.8, 8.1, 15.5, 16, 16.6, 17.2, 17.8, 18.4, 19, 19.5, 20, 20.4];
+
+const DEMO_NOTES = {
+    bickering:     ["over the tablet", "who sat where in the car", ""],
+    aggressive:    ["shoved past her sister", "", ""],
+    complaining:   ["about dinner, again", "", ""],
+    uncooperative: ["would not get shoes on", "", ""],
+    kind_sister:   ["shared without being asked", "", ""],
+    gentle:        ["walked away instead", "", ""],
+    good_attitude: ["", "", ""],
+    cooperative:   ["got ready first time asked", "", ""]
+};
+
+function seedKid(kid, kind, salt) {
     const posTags = ["kind_sister", "gentle", "good_attitude", "cooperative"];
     const negTags = ["bickering", "aggressive", "complaining", "uncooperative"];
     const today = todayStr();
-    let seed = 42;
+    let seed = 42 * salt + 7;
     const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
 
     /* The last two weeks get explicit rates; earlier weeks drift, so the
@@ -664,11 +690,18 @@ BX.seedDemo = function (kind) {
             const slot = HOUR_POOL[Math.floor(rnd() * HOUR_POOL.length)];
             const hh = Math.floor(slot), mm = Math.floor((slot % 1) * 60 + rnd() * 25);
             const [yy, mo, dd] = day.split("-").map(Number);
-            BX.remote["demo" + i + "_" + k] = {
-                kid: "laura", tag, pol: isPos ? 1 : -1, day,
+            const ev = {
+                kid, tag, pol: isPos ? 1 : -1, day,
                 ts: Date.UTC(yy, mo - 1, dd, hh + 4, Math.min(59, mm))
             };
+            // A few notes, mostly on recent entries, so the phone feed reads
+            // like something a person actually kept rather than a data dump.
+            const pool = DEMO_NOTES[tag];
+            if (pool && i < 10) {
+                const n = pool[Math.floor(rnd() * pool.length)];
+                if (n) ev.note = n;
+            }
+            BX.remote["demo_" + kid + "_" + i + "_" + k] = ev;
         }
     }
-    BX.ready = true;
-};
+}

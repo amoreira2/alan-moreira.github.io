@@ -363,7 +363,7 @@ function wireScatter() {
 
 /* ==================== RENDER ==================== */
 function render() {
-  if (!KID && !DEMO) return renderParents();
+  if (!KID) return renderParents();
   const kid = KID || "laura";
   const name = (KIDS[kid] || { name: "—" }).name;
   const m = BX.metrics(kid);
@@ -423,7 +423,7 @@ function render() {
     <div class="foot">
       <a href="index.html">← Log</a>
       <a href="#" onclick="BX.downloadCSV('${kid}');return false">Export ${esc(name)}'s data (CSV)</a>
-      <span>Updated ${new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</span>
+      <span>${DEMO ? "Demo — made-up data" : "Updated " + new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</span>
     </div>`;
 
   wireScatter();
@@ -454,7 +454,7 @@ function renderParents() {
       </div>
       <div class="line">${esc(c.sub)}</div>
       ${sparkline(BX.shareSeries(kid, 56))}
-      <div class="line"><a href="wall.html?kid=${kid}" style="color:inherit">Her screen →</a></div>
+      <div class="line"><a href="wall.html?kid=${kid}${DEMO ? "&demo=" + DEMO : ""}" style="color:inherit">Her screen →</a></div>
     </div>`;
   }
   html += '</div><div class="foot"><a href="index.html">← Log</a>' +
@@ -604,8 +604,8 @@ function drawBlooms(m, kid) {
    comes up blank. Declarations first, then start. */
 /* ==================== BOOT ==================== */
 if (DEMO) {
-  BX.seedDemo(DEMO);
-  render();
+  BX.seedDemo(DEMO === "1" ? "up" : DEMO);
+  render();          // render() falls through to the parents' view when no ?kid
 } else {
   const code = BX.savedCode();
   if (!code) {
