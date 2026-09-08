@@ -152,6 +152,7 @@ header .title{font-size:1.15rem;font-weight:800;flex:1}
   <header>
     <div class="title">Today</div>
     <div class="dot" id="dot"></div>
+    <button class="icon-btn" onclick="exportCSV()" title="Export CSV">⤓</button>
     <button class="icon-btn" onclick="showCode()">⚙</button>
   </header>
 
@@ -225,6 +226,12 @@ function joinFamily() {
   if (c.length < 6) { err.textContent = "Codes are at least 6 characters."; return; }
   err.textContent = "";
   start(c);
+}
+
+function exportCSV() {
+  const n = BX.events().length;
+  if (!n) { alert("Nothing logged yet."); return; }
+  BX.downloadCSV();
 }
 
 function showCode() {

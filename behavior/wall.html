@@ -110,12 +110,25 @@ html[data-mood="down"] .stat .item .v{font-family:var(--serif);font-weight:400}
 .panel h2{font-size:.74rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
   color:var(--faint);margin-bottom:14px}
 .panel .cap{font-size:.78rem;color:var(--faint);margin-top:9px;line-height:1.5;max-width:44em}
-svg{display:block;width:100%;overflow:visible}
+svg{display:block;width:100%;height:auto;overflow:visible}
+/* A forced height on a viewBox SVG letterboxes it — the drawing scales to
+   the width and the leftover height becomes dead space. Height comes from
+   the viewBox instead. Phones get a floor so dots stay finger-sized. */
+@media(max-width:760px){#scatter{height:250px}}
 .catrow{display:flex;align-items:center;gap:14px;margin-bottom:11px;font-size:.88rem}
 .catrow .nm{width:9.5em;flex-shrink:0;color:var(--dim);text-align:right;font-size:.82rem}
 .catrow .bars{flex:1;min-width:0}
 .catrow .bar{height:7px;border-radius:4px;margin:2px 0;transition:width .6s}
 .catrow .n{width:4.2em;flex-shrink:0;font-size:.74rem;color:var(--faint);font-variant-numeric:tabular-nums}
+.panel{position:relative}
+.tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .12s;
+  background:var(--ink);color:var(--bg);border-radius:11px;padding:8px 11px;
+  font-size:.8rem;line-height:1.35;white-space:nowrap;z-index:5;
+  box-shadow:0 6px 20px rgba(0,0,0,.28);transform:translate(-50%,-124%)}
+.tip.on{opacity:1}
+.tip b{font-weight:800}
+.tip .when{opacity:.68;font-weight:600}
+.dot-hi{stroke:var(--ink);stroke-width:2.5}
 
 /* ---------- footer / nav ---------- */
 .foot{padding:44px 7vw 0;color:var(--faint);font-size:.76rem;display:flex;
@@ -143,26 +156,6 @@ svg{display:block;width:100%;overflow:visible}
 const Q = new URLSearchParams(location.search);
 const KID = Q.get("kid");
 const DEMO = Q.get("demo");
-
-/* ==================== BOOT ==================== */
-if (DEMO) {
-  BX.seedDemo(DEMO);
-  render();
-} else {
-  const code = BX.savedCode();
-  if (!code) {
-    document.getElementById("root").innerHTML =
-      '<div class="hero"><div class="hero-inner">' +
-      '<div class="eyebrow">Not set up</div>' +
-      '<h1>Open the log first.</h1>' +
-      '<div class="sub">This screen reads the family code stored by the logger. ' +
-      'Open <a href="index.html" style="color:inherit">the logger</a> on this device and enter the code once.</div>' +
-      '</div></div>';
-  } else {
-    BX.init(code, render);
-  }
-}
-setInterval(() => { if (BX.ready) render(); }, 60000);
 
 /* ==================== COPY ====================
    Every headline names something specific. Vague praise and vague
@@ -273,6 +266,101 @@ function dogSVG(mood) {
   </svg>`;
 }
 
+/* Time-of-day scatter: one dot per entry, date across, clock time up.
+   The daily and weekly charts say how much and which way; this one says
+   *when*, which is the actionable part — a wall of dots at 7:30am and
+   another at bedtime is a scheduling problem, not a character problem. */
+let SCATTER = [];
+
+function scatterChart(kid, days) {
+  const pts = BX.eventPoints(kid, days);
+  if (!pts.length) return '<div class="cap">Nothing logged in this window yet.</div>';
+
+  const W = 1000, H = 260, pad = 12, L = 86;
+  const hours = pts.map(p => p.hour);
+  const lo = Math.max(0, Math.min(6, Math.floor(Math.min(...hours))));
+  const hi = Math.min(24, Math.max(21, Math.ceil(Math.max(...hours))));
+  const x = dx => L + (dx / (days - 1)) * (W - L);
+  const y = h => pad + (1 - (h - lo) / (hi - lo)) * (H - 2 * pad);
+
+  // Gridlines every 3 hours, labelled in the same gutter the line chart uses.
+  let grid = "";
+  for (let h = Math.ceil(lo / 3) * 3; h <= hi; h += 3) {
+    const label = (h % 12 === 0 ? 12 : h % 12) + (h < 12 || h === 24 ? "am" : "pm");
+    grid += `<line x1="${L}" y1="${y(h)}" x2="${W}" y2="${y(h)}" stroke="var(--line)"/>
+             <text x="${L - 12}" y="${y(h) + 5}" font-size="15" fill="var(--faint)"
+               text-anchor="end">${label}</text>`;
+  }
+
+  SCATTER = pts.map(p => ({
+    px: x(p.dx), py: y(p.hour), ts: p.ts, tag: p.tag, pol: p.pol, kid: p.kid
+  }));
+
+  const dots = SCATTER.map((p, i) =>
+    `<circle data-i="${i}" cx="${p.px.toFixed(1)}" cy="${p.py.toFixed(1)}" r="6"
+      fill="${p.pol > 0 ? "var(--pos)" : "var(--neg)"}" opacity=".78"/>`).join("");
+
+  const startDay = addDays(todayStr(), -(days - 1));
+  return `<svg id="scatter" viewBox="0 0 ${W} ${H + 22}">
+    ${grid}${dots}
+    <text x="${L}" y="${H + 16}" font-size="14" fill="var(--faint)">${shortDate(startDay)}</text>
+    <text x="${W}" y="${H + 16}" font-size="14" fill="var(--faint)" text-anchor="end">today</text>
+  </svg>
+  <div class="tip" id="tip"></div>`;
+}
+
+/* Nearest-dot lookup in viewBox space. Works for mouse and finger alike —
+   touch is why this is a proximity search rather than a per-dot :hover. */
+function wireScatter() {
+  const svg = document.getElementById("scatter");
+  const tip = document.getElementById("tip");
+  if (!svg || !tip) return;
+  const panel = svg.closest(".panel");
+  let lastHi = null;
+
+  const hide = () => {
+    tip.classList.remove("on");
+    if (lastHi) { lastHi.classList.remove("dot-hi"); lastHi.setAttribute("r", 6); lastHi = null; }
+  };
+
+  const move = ev => {
+    const touch = ev.touches ? ev.touches[0] : ev;
+    const m = svg.getScreenCTM();
+    if (!m) return;
+    const pt = svg.createSVGPoint();
+    pt.x = touch.clientX; pt.y = touch.clientY;
+    const loc = pt.matrixTransform(m.inverse());
+
+    let best = -1, bestD = Infinity;
+    SCATTER.forEach((p, i) => {
+      const d = (p.px - loc.x) ** 2 + (p.py - loc.y) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    });
+    if (best < 0 || bestD > 45 ** 2) return hide();
+
+    const p = SCATTER[best];
+    const label = (BX.catalog[p.tag] || {}).label || p.tag;
+    tip.innerHTML = `<b>${esc(label)}</b><br><span class="when">${esc(BX.etLongDate(p.ts))} · ${esc(BX.etClock(p.ts))}</span>`;
+
+    const pr = panel.getBoundingClientRect();
+    const sx = p.px * m.a + m.e, sy = p.py * m.d + m.f;
+    tip.style.left = (sx - pr.left) + "px";
+    tip.style.top = (sy - pr.top) + "px";
+    tip.classList.add("on");
+
+    if (lastHi) { lastHi.classList.remove("dot-hi"); lastHi.setAttribute("r", 6); }
+    lastHi = svg.querySelector(`circle[data-i="${best}"]`);
+    if (lastHi) { lastHi.classList.add("dot-hi"); lastHi.setAttribute("r", 8); }
+    if (ev.cancelable) ev.preventDefault();
+  };
+
+  svg.addEventListener("mousemove", move);
+  svg.addEventListener("mouseleave", hide);
+  svg.addEventListener("touchstart", move, { passive: false });
+  svg.addEventListener("touchmove", move, { passive: false });
+  svg.addEventListener("touchend", () => setTimeout(hide, 2600));
+}
+
 /* ==================== RENDER ==================== */
 function render() {
   if (!KID && !DEMO) return renderParents();
@@ -318,6 +406,13 @@ function render() {
       </div>
 
       <div class="panel">
+        <h2>Six weeks · when it happened</h2>
+        ${scatterChart(kid, 42)}
+        <div class="cap">Every entry, placed by the day it happened and the time of day.
+        Touch or hover a dot for the behavior, the date and the time.</div>
+      </div>
+
+      <div class="panel">
         <h2>Six weeks · one square per day</h2>
         ${calendar(BX.daySeries(kid, 42))}
         <div class="cap">Green means more good than not that day; brown the other way.
@@ -327,9 +422,11 @@ function render() {
 
     <div class="foot">
       <a href="index.html">← Log</a>
+      <a href="#" onclick="BX.downloadCSV('${kid}');return false">Export ${esc(name)}'s data (CSV)</a>
       <span>Updated ${new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</span>
     </div>`;
 
+  wireScatter();
   if (m.mood === "up" || m.mood === "steady") drawBlooms(m, kid);
 }
 
@@ -360,7 +457,9 @@ function renderParents() {
       <div class="line"><a href="wall.html?kid=${kid}" style="color:inherit">Her screen →</a></div>
     </div>`;
   }
-  html += '</div><div class="foot"><a href="index.html">← Log</a><span>Parents\' view</span></div>';
+  html += '</div><div class="foot"><a href="index.html">← Log</a>' +
+          '<a href="#" onclick="BX.downloadCSV();return false">Export everything (CSV)</a>' +
+          '<span>Parents\' view</span></div>';
   document.getElementById("root").innerHTML = html;
 }
 
@@ -396,7 +495,7 @@ function sparkline(series) {
   const lastPt = [...series].reverse().find(p => p.share !== null);
   const lastIdx = lastPt ? series.lastIndexOf(lastPt) : -1;
 
-  return `<svg viewBox="0 0 ${W} ${H + 14 + VH}" style="height:clamp(200px,26vh,290px)">
+  return `<svg viewBox="0 0 ${W} ${H + 14 + VH}">
     <line x1="${L}" y1="${y(0.5)}" x2="${W}" y2="${y(0.5)}" stroke="var(--line)" stroke-dasharray="4 6"/>
     <text x="${L - 12}" y="${y(0.5) + 5}" font-size="15" fill="var(--faint)" text-anchor="end">half</text>
     <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="3.4"
@@ -498,6 +597,36 @@ function drawBlooms(m, kid) {
   }
   svg.innerHTML = out;
 }
+/* ==================== BOOT ====================
+   Last on purpose. This calls render() immediately, and render()
+   touches the module-level SCATTER binding; running it before that
+   `let` is evaluated throws a temporal-dead-zone error and the page
+   comes up blank. Declarations first, then start. */
+/* ==================== BOOT ==================== */
+if (DEMO) {
+  BX.seedDemo(DEMO);
+  render();
+} else {
+  const code = BX.savedCode();
+  if (!code) {
+    document.getElementById("root").innerHTML =
+      '<div class="hero"><div class="hero-inner">' +
+      '<div class="eyebrow">Not set up</div>' +
+      '<h1>Open the log first.</h1>' +
+      '<div class="sub">This screen reads the family code stored by the logger. ' +
+      'Open <a href="index.html" style="color:inherit">the logger</a> on this device and enter the code once.</div>' +
+      '</div></div>';
+  } else {
+    BX.init(code, render);
+  }
+}
+setInterval(() => { if (BX.ready) render(); }, 60000);
+
+let resizeT = null;
+addEventListener("resize", () => {
+  clearTimeout(resizeT);
+  resizeT = setTimeout(() => { if (BX.ready) render(); }, 250);
+});
 </script>
 </body>
 </html>

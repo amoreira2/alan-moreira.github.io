@@ -363,6 +363,96 @@ BX.tags = function () {
         .sort((a, b) => (a.order || 99) - (b.order || 99));
 };
 
+/* ------------------------------------------------------------
+   TIME-OF-DAY
+   Every event has always carried a full ts; only the date was being
+   used. These read the clock time back out in Eastern Time so a 7pm
+   entry reads as 7pm regardless of where the phone thinks it is.
+   ------------------------------------------------------------ */
+function etParts(ts) {
+    const f = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/New_York", hourCycle: "h23",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit"
+    });
+    const o = {};
+    for (const part of f.formatToParts(new Date(ts))) o[part.type] = part.value;
+    return o;
+}
+
+BX.etHour = function (ts) {
+    const p = etParts(ts);
+    return Number(p.hour) + Number(p.minute) / 60;
+};
+
+BX.etClock = function (ts) {
+    return new Date(ts).toLocaleTimeString("en-US", {
+        timeZone: "America/New_York", hour: "numeric", minute: "2-digit"
+    });
+};
+
+BX.etLongDate = function (ts) {
+    return new Date(ts).toLocaleDateString("en-US", {
+        timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric"
+    });
+};
+
+/* Events in the trailing window, carried with their day offset and clock
+   hour — the input to the time-of-day scatter. */
+BX.eventPoints = function (kid, days, asOf) {
+    asOf = asOf || todayStr();
+    const start = addDays(asOf, -(days - 1));
+    return BX.events(kid)
+        .filter(e => e.day >= start && e.day <= asOf)
+        .map(e => ({
+            id: e.id, kid: e.kid, tag: e.tag, pol: e.pol, ts: e.ts, day: e.day,
+            dx: daysBetween(start, e.day),
+            hour: BX.etHour(e.ts)
+        }));
+};
+
+/* ---------- CSV ----------
+   Chronological, one row per event, ISO timestamp plus split date/time
+   columns so it drops straight into pandas or a spreadsheet without
+   parsing work. */
+function csvCell(v) {
+    v = v === undefined || v === null ? "" : String(v);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+BX.toCSV = function (kid) {
+    const rows = [["timestamp_et", "date", "time", "weekday", "kid",
+                   "behavior", "polarity", "note"]];
+    const evs = BX.events(kid).slice().sort((a, b) => a.ts - b.ts);
+    for (const e of evs) {
+        const p = etParts(e.ts);
+        const tag = BX.catalog[e.tag] || {};
+        rows.push([
+            `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`,
+            e.day,
+            `${p.hour}:${p.minute}`,
+            new Date(e.ts).toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long" }),
+            (KIDS[e.kid] || {}).name || e.kid,
+            tag.label || e.tag,
+            e.pol,
+            e.note || ""
+        ]);
+    }
+    return rows.map(r => r.map(csvCell).join(",")).join("\n");
+};
+
+BX.downloadCSV = function (kid) {
+    const csv = BX.toCSV(kid);
+    const name = "behavior-" + (kid || "all") + "-" + todayStr() + ".csv";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    return csv.split("\n").length - 1;
+};
+
 /* ============================================================
    METRICS
 
@@ -523,6 +613,8 @@ BX.seedDemo = function (kind) {
     BX.remote = {};
     BX.outbox = {};
 
+    // Morning rush, after school, and the bedtime hour.
+    const HOUR_POOL = [7, 7.4, 7.8, 8.1, 15.5, 16, 16.6, 17.2, 17.8, 18.4, 19, 19.5, 20, 20.4];
     const posTags = ["kind_sister", "gentle", "good_attitude", "cooperative"];
     const negTags = ["bickering", "aggressive", "complaining", "uncooperative"];
     const today = todayStr();
@@ -566,9 +658,15 @@ BX.seedDemo = function (kind) {
             } else {
                 tag = negTags[Math.floor(rnd() * negTags.length)];
             }
+            /* Plausible clock times so the time-of-day chart demonstrates
+               what it is for: a morning rush, an after-school stretch and
+               a bedtime cluster, which is where this stuff actually happens. */
+            const slot = HOUR_POOL[Math.floor(rnd() * HOUR_POOL.length)];
+            const hh = Math.floor(slot), mm = Math.floor((slot % 1) * 60 + rnd() * 25);
+            const [yy, mo, dd] = day.split("-").map(Number);
             BX.remote["demo" + i + "_" + k] = {
-                kid: "laura", tag, pol: isPos ? 1 : -1,
-                ts: Date.now() - i * 86400000 + k * 3600000, day
+                kid: "laura", tag, pol: isPos ? 1 : -1, day,
+                ts: Date.UTC(yy, mo - 1, dd, hh + 4, Math.min(59, mm))
             };
         }
     }
