@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c1b22">
+<meta name="robots" content="noindex, nofollow">
+<title>Behavior Log</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📓</text></svg>">
+<style>
+:root{
+  --bg:#15141a; --card:#201f28; --card2:#2a2833;
+  --ink:#f4f2f7; --dim:#9b96ab; --faint:#6a6579;
+  --pos:#4ade80; --pos-dim:#1d3b2a;
+  --neg:#f0a882; --neg-dim:#3b2a22;
+  --laura:#f472b6; --julia:#60a5fa;
+  --r:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:var(--bg); color:var(--ink);
+  min-height:100dvh; overscroll-behavior-y:none;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer}
+
+/* ---------- setup ---------- */
+#setup{display:none;flex-direction:column;justify-content:center;align-items:center;min-height:100dvh;padding:24px;text-align:center}
+#setup h1{font-size:1.6rem;font-weight:800;margin-bottom:8px}
+#setup p{color:var(--dim);font-size:.9rem;margin-bottom:28px;max-width:300px;line-height:1.5}
+#code-input{width:100%;max-width:320px;padding:16px;border-radius:14px;background:var(--card);
+  border:2px solid var(--card2);color:var(--ink);font-size:1.2rem;text-align:center;
+  letter-spacing:.18em;font-weight:700;text-transform:uppercase;margin-bottom:14px}
+#code-input:focus{outline:none;border-color:var(--julia)}
+.setup-btn{width:100%;max-width:320px;padding:15px;border-radius:14px;background:var(--julia);
+  color:#0c1220;font-weight:800;font-size:1rem;margin-bottom:10px}
+.setup-alt{color:var(--dim);font-size:.85rem;padding:8px;text-decoration:underline}
+#setup-err{color:var(--neg);font-size:.85rem;height:18px;margin-bottom:6px}
+
+/* ---------- app ---------- */
+#app{display:none;flex-direction:column;min-height:100dvh;padding-bottom:120px}
+header{display:flex;align-items:center;gap:10px;padding:16px 18px 10px}
+header .title{font-size:1.15rem;font-weight:800;flex:1}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--faint);flex-shrink:0}
+.dot.on{background:var(--pos)}
+.icon-btn{padding:8px;border-radius:10px;font-size:1.1rem;color:var(--dim)}
+
+/* today cards */
+.today{display:flex;gap:10px;padding:6px 18px 14px}
+.tcard{flex:1;background:var(--card);border-radius:var(--r);padding:14px;text-decoration:none;color:inherit;
+  border:1.5px solid transparent;display:block}
+.tcard.laura{border-color:rgba(244,114,182,.28)}
+.tcard.julia{border-color:rgba(96,165,250,.28)}
+.tcard .who{font-size:.78rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px}
+.tcard.laura .who{color:var(--laura)} .tcard.julia .who{color:var(--julia)}
+.tcard .nums{display:flex;align-items:baseline;gap:8px;font-weight:800}
+.tcard .np{color:var(--pos);font-size:1.5rem}
+.tcard .nn{color:var(--neg);font-size:1.5rem}
+.tcard .sep{color:var(--faint);font-size:1rem}
+.tcard .sub{color:var(--faint);font-size:.72rem;margin-top:6px}
+
+/* nudge */
+#nudge{margin:0 18px 14px;padding:12px 14px;border-radius:14px;background:var(--card2);
+  color:var(--dim);font-size:.82rem;line-height:1.5;display:none;border-left:3px solid var(--neg)}
+
+.sec-label{padding:4px 18px 8px;color:var(--faint);font-size:.72rem;font-weight:700;
+  letter-spacing:.09em;text-transform:uppercase}
+
+/* feed */
+#feed{padding:0 18px}
+.ev{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.ev .em{font-size:1.35rem;width:38px;height:38px;border-radius:11px;display:flex;
+  align-items:center;justify-content:center;flex-shrink:0}
+.ev.pos .em{background:var(--pos-dim)} .ev.neg .em{background:var(--neg-dim)}
+.ev .mid{flex:1;min-width:0}
+.ev .lab{font-size:.94rem;font-weight:600}
+.ev .meta{font-size:.74rem;color:var(--faint);margin-top:2px}
+.ev .note{font-size:.78rem;color:var(--dim);margin-top:3px;font-style:italic}
+.ev .kid{font-weight:800;font-size:.7rem;padding:2px 7px;border-radius:6px;flex-shrink:0}
+.ev .kid.laura{background:rgba(244,114,182,.16);color:var(--laura)}
+.ev .kid.julia{background:rgba(96,165,250,.16);color:var(--julia)}
+.ev .del{color:var(--faint);padding:6px;font-size:.95rem}
+.empty{color:var(--faint);text-align:center;padding:36px 20px;font-size:.88rem;line-height:1.6}
+
+/* FAB */
+#fab{position:fixed;right:20px;bottom:calc(24px + env(safe-area-inset-bottom));
+  width:66px;height:66px;border-radius:50%;background:var(--ink);color:var(--bg);
+  font-size:2.1rem;font-weight:300;line-height:1;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 28px rgba(0,0,0,.5);z-index:40;transition:transform .12s}
+#fab:active{transform:scale(.92)}
+
+/* sheet */
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);opacity:0;pointer-events:none;
+  transition:opacity .18s;z-index:50}
+#scrim.open{opacity:1;pointer-events:auto}
+#sheet{position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--card);
+  border-radius:26px 26px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));
+  transform:translateY(102%);transition:transform .24s cubic-bezier(.32,.72,0,1);max-height:88dvh;overflow-y:auto}
+#sheet.open{transform:translateY(0)}
+.grabber{width:38px;height:4px;border-radius:2px;background:var(--faint);margin:6px auto 14px;opacity:.5}
+.kidrow{display:flex;gap:10px;margin-bottom:16px}
+.kidpill{flex:1;padding:13px;border-radius:14px;background:var(--card2);font-weight:800;
+  font-size:1rem;border:2px solid transparent;transition:.12s}
+.kidpill.sel.laura{background:rgba(244,114,182,.18);border-color:var(--laura);color:var(--laura)}
+.kidpill.sel.julia{background:rgba(96,165,250,.18);border-color:var(--julia);color:var(--julia)}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.chip{display:flex;align-items:center;gap:9px;padding:14px 12px;border-radius:14px;
+  background:var(--card2);text-align:left;transition:transform .1s}
+.chip:active{transform:scale(.95)}
+.chip .e{font-size:1.3rem;flex-shrink:0}
+.chip .t{font-size:.87rem;font-weight:600;line-height:1.2}
+.chip.pos{background:var(--pos-dim)} .chip.pos .t{color:#a7f3c8}
+.chip.neg{background:var(--neg-dim)} .chip.neg .t{color:#f6cbb0}
+.chip.add{background:transparent;border:1.5px dashed var(--faint);justify-content:center}
+.chip.add .t{color:var(--dim)}
+.sheet-hint{color:var(--faint);font-size:.72rem;text-align:center;padding:2px 0 6px}
+
+/* toast */
+#toast{position:fixed;left:16px;right:16px;bottom:calc(100px + env(safe-area-inset-bottom));
+  background:var(--ink);color:var(--bg);border-radius:15px;padding:13px 16px;
+  display:flex;align-items:center;gap:12px;z-index:70;
+  transform:translateY(140%);transition:transform .2s;box-shadow:0 8px 28px rgba(0,0,0,.4)}
+#toast.show{transform:translateY(0)}
+#toast .msg{flex:1;font-size:.88rem;font-weight:600}
+#toast .undo{font-weight:800;font-size:.88rem;color:#c2410c;padding:4px 6px}
+</style>
+</head>
+<body>
+
+<!-- ================= SETUP ================= -->
+<div id="setup">
+  <h1>📓 Behavior Log</h1>
+  <p>Enter your family code. Use the same code on every phone so entries land in one place.</p>
+  <input id="code-input" maxlength="12" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">
+  <div id="setup-err"></div>
+  <button class="setup-btn" onclick="joinFamily()">Start</button>
+  <button class="setup-alt" onclick="makeCode()">Create a new code</button>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <header>
+    <div class="title">Today</div>
+    <div class="dot" id="dot"></div>
+    <button class="icon-btn" onclick="showCode()">⚙</button>
+  </header>
+
+  <div class="today">
+    <a class="tcard laura" href="wall.html?kid=laura">
+      <div class="who">Laura</div>
+      <div class="nums"><span class="np" id="l-pos">0</span><span class="sep">/</span><span class="nn" id="l-neg">0</span></div>
+      <div class="sub">tap for her week →</div>
+    </a>
+    <a class="tcard julia" href="wall.html?kid=julia">
+      <div class="who">Julia</div>
+      <div class="nums"><span class="np" id="j-pos">0</span><span class="sep">/</span><span class="nn" id="j-neg">0</span></div>
+      <div class="sub">tap for her week →</div>
+    </a>
+  </div>
+
+  <div id="nudge"></div>
+
+  <div class="sec-label">Recent</div>
+  <div id="feed"></div>
+</div>
+
+<button id="fab" onclick="openSheet()" aria-label="Log something">+</button>
+
+<div id="scrim" onclick="closeSheet()"></div>
+<div id="sheet">
+  <div class="grabber"></div>
+  <div class="kidrow">
+    <button class="kidpill laura" id="pill-laura" onclick="pickKid('laura')">Laura</button>
+    <button class="kidpill julia" id="pill-julia" onclick="pickKid('julia')">Julia</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="sheet-hint">Hold a button to add a note</div>
+</div>
+
+<div id="toast">
+  <div class="msg" id="toast-msg"></div>
+  <button class="undo" id="toast-undo" onclick="undoLast()">UNDO</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="data.js"></script>
+<script>
+/* ==================== BOOT ==================== */
+let currentKid = localStorage.getItem("behavior-last-kid") || "laura";
+let lastLogged = null;
+let toastTimer = null;
+
+const code = BX.savedCode();
+if (code) {
+  start(code);
+} else {
+  document.getElementById("setup").style.display = "flex";
+}
+
+function start(c) {
+  document.getElementById("setup").style.display = "none";
+  document.getElementById("app").style.display = "flex";
+  BX.init(c, render);
+}
+
+function makeCode() {
+  document.getElementById("code-input").value = BX.generateCode();
+}
+
+function joinFamily() {
+  const input = document.getElementById("code-input");
+  const c = input.value.trim().toUpperCase();
+  const err = document.getElementById("setup-err");
+  if (c.length < 6) { err.textContent = "Codes are at least 6 characters."; return; }
+  err.textContent = "";
+  start(c);
+}
+
+function showCode() {
+  alert("Family code: " + BX.code +
+        "\n\nEnter this on the other phone to sync.\n\nBig-screen view:\n" +
+        location.href.replace(/index\.html.*$|\/$/, "") + "/wall.html?kid=laura");
+}
+
+/* ==================== RENDER ==================== */
+function render() {
+  document.getElementById("dot").className = "dot" + (BX.online ? " on" : "");
+
+  const today = todayStr();
+  for (const kid of ["laura", "julia"]) {
+    const evs = BX.events(kid).filter(e => e.day === today);
+    const p = evs.filter(e => e.pol > 0).length;
+    const n = evs.filter(e => e.pol < 0).length;
+    document.getElementById(kid[0] + "-pos").textContent = p;
+    document.getElementById(kid[0] + "-neg").textContent = n;
+  }
+
+  renderNudge();
+  renderChips();
+  renderFeed();
+}
+
+function renderNudge() {
+  const el = document.getElementById("nudge");
+  let msg = "";
+  for (const kid of ["laura", "julia"]) {
+    if (BX.negativeStreak(kid, 6)) {
+      msg = "The last six entries for " + KIDS[kid].name +
+            " were all negative. If she does something right today, log that too — " +
+            "a record that only counts failures stops meaning anything to her.";
+      break;
+    }
+  }
+  el.textContent = msg;
+  el.style.display = msg ? "block" : "none";
+}
+
+function renderChips() {
+  const box = document.getElementById("chips");
+  box.innerHTML = "";
+  for (const t of BX.tags()) {
+    const b = document.createElement("button");
+    b.className = "chip " + (t.pol > 0 ? "pos" : "neg");
+    b.innerHTML = '<span class="e"></span><span class="t"></span>';
+    b.querySelector(".e").textContent = t.emoji;
+    b.querySelector(".t").textContent = t.label;
+    attachChip(b, t.id);
+    box.appendChild(b);
+  }
+  const add = document.createElement("button");
+  add.className = "chip add";
+  add.innerHTML = '<span class="t">+ Something else</span>';
+  add.onclick = addCustom;
+  box.appendChild(add);
+}
+
+/* Tap logs immediately. Long-press (500ms) opens a note prompt instead. */
+function attachChip(btn, tagId) {
+  let timer = null, longFired = false;
+  const startPress = () => {
+    longFired = false;
+    timer = setTimeout(() => {
+      longFired = true;
+      const note = prompt("Note (optional):");
+      if (note !== null) doLog(tagId, note.trim());
+    }, 500);
+  };
+  const endPress = e => {
+    clearTimeout(timer);
+    if (!longFired) { e.preventDefault(); doLog(tagId, ""); }
+  };
+  btn.addEventListener("touchstart", startPress, {passive:true});
+  btn.addEventListener("touchend", endPress);
+  btn.addEventListener("touchcancel", () => clearTimeout(timer));
+  btn.addEventListener("mousedown", startPress);
+  btn.addEventListener("mouseup", endPress);
+  btn.addEventListener("mouseleave", () => clearTimeout(timer));
+}
+
+function renderFeed() {
+  const feed = document.getElementById("feed");
+  const evs = BX.events().slice(0, 40);
+  if (!evs.length) {
+    feed.innerHTML = '<div class="empty">Nothing logged yet.<br>Tap + to record the first thing.</div>';
+    return;
+  }
+  feed.innerHTML = "";
+  for (const e of evs) {
+    const tag = BX.catalog[e.tag] || { label: e.tag, emoji: "•" };
+    const row = document.createElement("div");
+    row.className = "ev " + (e.pol > 0 ? "pos" : "neg");
+    row.innerHTML =
+      '<div class="em"></div>' +
+      '<div class="mid"><div class="lab"></div><div class="meta"></div></div>' +
+      '<div class="kid ' + e.kid + '"></div>' +
+      '<button class="del">✕</button>';
+    row.querySelector(".em").textContent = tag.emoji;
+    row.querySelector(".lab").textContent = tag.label;
+    row.querySelector(".meta").textContent = relativeTime(e.ts) + (e.pending ? " · syncing" : "");
+    row.querySelector(".kid").textContent = KIDS[e.kid].initial;
+    if (e.note) {
+      const n = document.createElement("div");
+      n.className = "note"; n.textContent = "“" + e.note + "”";
+      row.querySelector(".mid").appendChild(n);
+    }
+    row.querySelector(".del").onclick = () => {
+      if (confirm("Delete this entry?")) BX.remove(e.id);
+    };
+    feed.appendChild(row);
+  }
+}
+
+/* ==================== SHEET ==================== */
+function openSheet() {
+  pickKid(currentKid);
+  document.getElementById("scrim").classList.add("open");
+  document.getElementById("sheet").classList.add("open");
+}
+function closeSheet() {
+  document.getElementById("scrim").classList.remove("open");
+  document.getElementById("sheet").classList.remove("open");
+}
+function pickKid(kid) {
+  currentKid = kid;
+  localStorage.setItem("behavior-last-kid", kid);
+  for (const k of ["laura", "julia"]) {
+    document.getElementById("pill-" + k).classList.toggle("sel", k === kid);
+  }
+}
+
+function doLog(tagId, note) {
+  const id = BX.log(currentKid, tagId, note);
+  if (!id) return;
+  lastLogged = id;
+  closeSheet();
+  if (navigator.vibrate) navigator.vibrate(18);
+  const tag = BX.catalog[tagId];
+  showToast(KIDS[currentKid].name + " · " + tag.label);
+}
+
+function addCustom() {
+  const label = prompt("What should it be called?");
+  if (!label || !label.trim()) return;
+  const good = confirm("Is this a GOOD thing?\n\nOK = good   ·   Cancel = not good");
+  const emoji = prompt("An emoji for it (optional):", good ? "⭐" : "•");
+  const id = BX.addTag(label.trim(), good ? 1 : -1, (emoji || "").trim());
+  doLog(id, "");
+}
+
+/* ==================== TOAST / UNDO ====================
+   Six seconds is deliberate. Some of these get logged in the middle
+   of an argument and you want them back thirty seconds later. */
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  document.getElementById("toast-msg").textContent = msg;
+  document.getElementById("toast").classList.add("show");
+  toastTimer = setTimeout(() => {
+    document.getElementById("toast").classList.remove("show");
+    lastLogged = null;
+  }, 6000);
+}
+function undoLast() {
+  if (lastLogged) BX.remove(lastLogged);
+  lastLogged = null;
+  clearTimeout(toastTimer);
+  document.getElementById("toast").classList.remove("show");
+}
+
+setInterval(() => { if (BX.ready) renderFeed(); }, 60000); // keep "5m ago" honest
+</script>
+</body>
+</html>

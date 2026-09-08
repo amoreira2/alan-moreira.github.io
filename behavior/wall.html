@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en" data-mood="steady">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>The Week</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤️</text></svg>">
+<style>
+/* ============================================================
+   Three moods, three registers.
+
+   up      — night garden. Warm, saturated, slowly breathing.
+   steady  — same structure, desaturated, motion stopped.
+   down    — pale paper, ink serif, no color, no motion, one sentence.
+
+   The down state deliberately switches light/dark. It is meant to
+   feel like a different kind of page, not a red version of the same
+   page. Serious rather than loud — the loud channel already exists
+   and is the thing this tool is trying to replace.
+   ============================================================ */
+:root{
+  --bg1:#241d2e; --bg2:#3a2340; --ink:#fdf7f2; --dim:rgba(253,247,242,.62);
+  --faint:rgba(253,247,242,.24); --line:rgba(253,247,242,.14);
+  --accent:#ffb37a; --pos:#7ce0a8; --neg:#f09a76;
+  --serif:Georgia,'Iowan Old Style','Times New Roman',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --headline-font:var(--sans); --headline-weight:800; --headline-spacing:-.03em;
+  --breathe:18s;
+}
+html[data-mood="up"]{
+  --bg1:#2a1630; --bg2:#5b2a3c; --accent:#ffc27a; --pos:#8ef0b4;
+}
+html[data-mood="steady"]{
+  --bg1:#22262e; --bg2:#2c3440; --accent:#9fb4c4; --pos:#8fc3a6; --neg:#c9a58e;
+}
+html[data-mood="down"]{
+  --bg1:#e9e7e2; --bg2:#e2e0da; --ink:#22201d; --dim:rgba(34,32,29,.60);
+  --faint:rgba(34,32,29,.22); --line:rgba(34,32,29,.16);
+  --accent:#6b665e; --pos:#7d8d7a; --neg:#8a7263;
+  --headline-font:var(--serif); --headline-weight:400; --headline-spacing:-.01em;
+}
+html[data-mood="insufficient"]{
+  --bg1:#20202a; --bg2:#282833; --accent:#8a8598;
+}
+
+/* Dog palette. Separate from the page palette above and keyed on a bare
+   attribute selector, so the parents' view can give each card its own
+   mood without disturbing the page background. */
+[data-mood]{--dog-fur:#c9b79e;--dog-ear:#a89478;--dog-muzzle:#f2e9dc;--dog-nose:#3a322a;--dog-tongue:#e8768f}
+[data-mood="up"]{--dog-fur:#f2b96e;--dog-ear:#d18f45;--dog-muzzle:#fdf1dc;--dog-nose:#3b2a22;--dog-tongue:#f07f97}
+[data-mood="steady"]{--dog-fur:#b3a898;--dog-ear:#948877;--dog-muzzle:#e8e2d8;--dog-nose:#33383f}
+[data-mood="down"]{--dog-fur:#b0a598;--dog-ear:#8e8377;--dog-muzzle:#ded7cd;--dog-nose:#4a443d}
+[data-mood="insufficient"]{--dog-fur:#9d97a8;--dog-ear:#807a8c;--dog-muzzle:#e2dee8;--dog-nose:#33303a}
+
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:var(--sans);
+  background:linear-gradient(160deg,var(--bg1),var(--bg2));
+  color:var(--ink); min-height:100dvh;
+  transition:background 1.2s ease, color 1.2s ease;
+  padding:0 0 60px;
+}
+
+/* ---------- hero ---------- */
+.hero{position:relative;min-height:78dvh;display:flex;flex-direction:column;
+  justify-content:center;padding:8vh 7vw;overflow:hidden}
+#blooms{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+html[data-mood="down"] #blooms,html[data-mood="insufficient"] #blooms{display:none}
+.hero-inner{position:relative;z-index:2;max-width:min(92vw,1180px);
+  display:flex;align-items:center;gap:clamp(20px,4vw,64px);flex-wrap:wrap-reverse}
+.hero-copy{flex:1 1 380px;min-width:0}
+.dog-wrap{flex:0 0 auto;width:clamp(140px,20vw,290px)}
+.dog-wrap svg{width:100%;height:auto;overflow:visible}
+/* Only the improving dog moves. Everywhere else motion stops, same rule
+   the rest of the page follows. */
+@keyframes dogbob{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-7px) rotate(-2deg)}}
+html[data-mood="up"] .dog-wrap{animation:dogbob 3.4s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){html[data-mood="up"] .dog-wrap{animation:none}}
+.pcard .dog-wrap{width:74px}
+.pcard-head{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.pcard-head .nm{margin-bottom:0}
+/* em here would resolve against the 14px inherited body size, pinning the
+   column to ~266px on every screen and shattering the headline into one
+   word per line on exactly the big display this page exists for. */
+.eyebrow{font-size:clamp(.72rem,1vw,.86rem);font-weight:700;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--dim);margin-bottom:clamp(16px,3vh,30px)}
+h1{max-width:17ch;font-family:var(--headline-font);font-weight:var(--headline-weight);
+  letter-spacing:var(--headline-spacing);line-height:1.04;
+  font-size:clamp(2.4rem,7.2vw,6rem);margin-bottom:clamp(14px,2.6vh,26px)}
+.sub{font-size:clamp(1rem,1.9vw,1.5rem);line-height:1.5;color:var(--dim);max-width:38ch}
+html[data-mood="down"] .sub{font-family:var(--serif);font-size:clamp(1.05rem,2vw,1.6rem)}
+.stat{margin-top:clamp(22px,4vh,44px);display:flex;gap:clamp(24px,4vw,56px);flex-wrap:wrap}
+.stat .item .v{font-size:clamp(1.7rem,3.6vw,2.9rem);font-weight:800;letter-spacing:-.02em}
+html[data-mood="down"] .stat .item .v{font-family:var(--serif);font-weight:400}
+.stat .item .k{font-size:.76rem;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--faint);margin-top:5px;font-weight:700}
+
+/* ---------- charts ---------- */
+.charts{padding:0 7vw;display:grid;gap:clamp(30px,5vh,54px);max-width:1180px}
+.panel h2{font-size:.74rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:14px}
+.panel .cap{font-size:.78rem;color:var(--faint);margin-top:9px;line-height:1.5;max-width:44em}
+svg{display:block;width:100%;overflow:visible}
+.catrow{display:flex;align-items:center;gap:14px;margin-bottom:11px;font-size:.88rem}
+.catrow .nm{width:9.5em;flex-shrink:0;color:var(--dim);text-align:right;font-size:.82rem}
+.catrow .bars{flex:1;min-width:0}
+.catrow .bar{height:7px;border-radius:4px;margin:2px 0;transition:width .6s}
+.catrow .n{width:4.2em;flex-shrink:0;font-size:.74rem;color:var(--faint);font-variant-numeric:tabular-nums}
+
+/* ---------- footer / nav ---------- */
+.foot{padding:44px 7vw 0;color:var(--faint);font-size:.76rem;display:flex;
+  gap:18px;align-items:center;flex-wrap:wrap}
+.foot a{color:var(--dim);text-decoration:none;border-bottom:1px solid var(--line);padding-bottom:1px}
+
+/* parents view */
+.pair{display:grid;grid-template-columns:1fr;gap:clamp(28px,5vh,50px);padding:6vh 7vw 0}
+@media(min-width:900px){.pair{grid-template-columns:1fr 1fr}}
+.pcard{border:1px solid var(--line);border-radius:20px;padding:clamp(20px,3vw,32px)}
+.pcard .nm{font-size:1.5rem;font-weight:800;margin-bottom:4px}
+.pcard .md{font-size:.8rem;color:var(--faint);letter-spacing:.1em;text-transform:uppercase;
+  font-weight:700;margin-bottom:20px}
+.pcard .line{font-size:1rem;color:var(--dim);line-height:1.55;margin-top:14px}
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="data.js"></script>
+<script>
+const Q = new URLSearchParams(location.search);
+const KID = Q.get("kid");
+const DEMO = Q.get("demo");
+
+/* ==================== BOOT ==================== */
+if (DEMO) {
+  BX.seedDemo(DEMO);
+  render();
+} else {
+  const code = BX.savedCode();
+  if (!code) {
+    document.getElementById("root").innerHTML =
+      '<div class="hero"><div class="hero-inner">' +
+      '<div class="eyebrow">Not set up</div>' +
+      '<h1>Open the log first.</h1>' +
+      '<div class="sub">This screen reads the family code stored by the logger. ' +
+      'Open <a href="index.html" style="color:inherit">the logger</a> on this device and enter the code once.</div>' +
+      '</div></div>';
+  } else {
+    BX.init(code, render);
+  }
+}
+setInterval(() => { if (BX.ready) render(); }, 60000);
+
+/* ==================== COPY ====================
+   Every headline names something specific. Vague praise and vague
+   disapproval are both noise; the whole value is in "this, this week". */
+function headlineFor(m, name) {
+  const tagLabel = id => (BX.catalog[id] || {}).label || id;
+  const pct = m.cur.share === null ? null : Math.round(m.cur.share * 100);
+
+  if (m.mood === "insufficient") return {
+    eyebrow: name,
+    h1: "Not enough logged yet.",
+    sub: "This page needs about five entries in a week before it will say anything. " +
+         "Saying something confident off two data points would just be noise."
+  };
+  if (m.mood === "up") {
+    const w = m.win;
+    return {
+      eyebrow: name + " · this week",
+      h1: "A better week than last.",
+      sub: w && w.rise > 0
+        ? tagLabel(w.tag) + ": " + w.now + " this week, up from " + w.before + " last week."
+        : pct + "% of what got logged this week was good, up from " +
+          Math.round(m.prev.share * 100) + "%."
+    };
+  }
+  if (m.mood === "down") {
+    const f = m.focus;
+    return {
+      eyebrow: name + " · this week",
+      h1: "This week was harder.",
+      sub: f && f.rise > 0
+        ? tagLabel(f.tag).toLowerCase() + ": " + f.now + " this week, " + f.before +
+          " last week. That is the one to work on — just that one."
+        : "The balance tipped from " + Math.round(m.prev.share * 100) + "% good to " +
+          pct + "%. Worth a quiet conversation, not a long one."
+    };
+  }
+  // "Steady" covers two different situations and they must not read alike:
+  // a week that genuinely matched the one before, and a first week with
+  // nothing to compare against. Saying "about the same as last week" when
+  // there was no last week is simply false, and the credibility of this
+  // page rests on it never overstating what the data supports.
+  if (m.prev.n < BX.MIN_EVENTS) return {
+    eyebrow: name + " · this week",
+    h1: "First week on the board.",
+    sub: pct + "% of what got logged this week was good. Once there is a second " +
+         "week to compare against, this page will start showing which way things are going."
+  };
+  return {
+    eyebrow: name + " · this week",
+    h1: "Holding steady.",
+    sub: pct + "% of what got logged this week was good — about the same as last week."
+  };
+}
+
+/* ==================== THE DOG ====================
+   One dog, four expressions. Same animal every week so the girls read it
+   as "how she's doing" rather than four unrelated pictures.
+
+   The sad face is deliberately restrained — drooped ears, raised inner
+   brows, a small downturned mouth. Not tears, not a whimper. A distraught
+   animal is a guilt lever pointed at a child, and this page is meant to
+   be sober, not punishing. Sad-but-fine is the target. */
+function dogSVG(mood) {
+  const d = {
+    up:           { earY: 100, earRy: 42, earRot: 16, eyeR: 8.5, gleam: true,  brow: false, mouth: "open",  tilt: -4 },
+    steady:       { earY: 106, earRy: 44, earRot: 10, eyeR: 7.5, gleam: true,  brow: false, mouth: "soft",  tilt: 0  },
+    down:         { earY: 118, earRy: 51, earRot: 3,  eyeR: 6.5, gleam: false, brow: true,  mouth: "frown", tilt: 4  },
+    insufficient: { earY: 106, earRy: 44, earRot: 10, eyeR: 7.5, gleam: true,  brow: false, mouth: "soft",  tilt: -10 }
+  }[mood] || { earY: 106, earRy: 44, earRot: 10, eyeR: 7.5, gleam: true, brow: false, mouth: "soft", tilt: 0 };
+
+  const eye = (cx) =>
+    `<circle cx="${cx}" cy="88" r="${d.eyeR}" fill="var(--dog-nose)"/>` +
+    (d.gleam ? `<circle cx="${cx - d.eyeR * 0.3}" cy="${88 - d.eyeR * 0.38}" r="${(d.eyeR * 0.33).toFixed(1)}" fill="#fff" opacity=".9"/>` : "");
+
+  // Sad = inner ends of the brows lifted. That single detail does most of
+  // the emotional work; without it a small mouth just reads as neutral.
+  const brows = d.brow
+    ? `<g stroke="var(--dog-ear)" stroke-width="5" stroke-linecap="round" fill="none">
+         <path d="M60 76 L84 68"/><path d="M140 76 L116 68"/></g>`
+    : "";
+
+  /* The muzzle line is the mouth — for the sad face the same two strokes
+     simply droop instead of curling up. Drawing a separate frown under
+     the usual curl produced a muddled squiggle rather than a sad dog. */
+  const curl = `M100 128 Q100 141 87 141 Q77 141 75 133 M100 128 Q100 141 113 141 Q123 141 125 133`;
+  const droop = `M100 127 Q100 143 87 148 M100 127 Q100 143 113 148`;
+  const snout = `<path d="${d.mouth === "frown" ? droop : curl}"
+      stroke="var(--dog-nose)" stroke-width="4" fill="none" stroke-linecap="round"/>`;
+
+  const mouth = d.mouth === "open"
+    ? `<path d="M84 142 Q100 161 116 142 Z" fill="var(--dog-nose)"/>
+       <ellipse cx="100" cy="150" rx="8" ry="6.5" fill="var(--dog-tongue)"/>`
+    : "";
+
+  return `<svg viewBox="0 0 200 215" role="img" aria-label="dog">
+    <g transform="rotate(${d.tilt} 100 112)">
+      <ellipse cx="46"  cy="${d.earY}" rx="21" ry="${d.earRy}" fill="var(--dog-ear)"
+        transform="rotate(${-d.earRot} 46 ${d.earY})"/>
+      <ellipse cx="154" cy="${d.earY}" rx="21" ry="${d.earRy}" fill="var(--dog-ear)"
+        transform="rotate(${d.earRot} 154 ${d.earY})"/>
+      <ellipse cx="100" cy="100" rx="64" ry="60" fill="var(--dog-fur)"/>
+      ${brows}${eye(74)}${eye(126)}
+      <ellipse cx="100" cy="127" rx="36" ry="27" fill="var(--dog-muzzle)"/>
+      <path d="M86 110 Q100 101 114 110 Q114 124 100 130 Q86 124 86 110 Z" fill="var(--dog-nose)"/>
+      ${snout}${mouth}
+    </g>
+  </svg>`;
+}
+
+/* ==================== RENDER ==================== */
+function render() {
+  if (!KID && !DEMO) return renderParents();
+  const kid = KID || "laura";
+  const name = (KIDS[kid] || { name: "—" }).name;
+  const m = BX.metrics(kid);
+  document.documentElement.setAttribute("data-mood", m.mood);
+
+  const copy = headlineFor(m, name);
+  const pct = m.cur.share === null ? "—" : Math.round(m.cur.share * 100) + "%";
+
+  document.getElementById("root").innerHTML = `
+    <div class="hero">
+      <svg id="blooms" preserveAspectRatio="none"></svg>
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <div class="eyebrow">${esc(copy.eyebrow)}</div>
+          <h1>${esc(copy.h1)}</h1>
+          <div class="sub">${esc(copy.sub)}</div>
+          <div class="stat">
+            <div class="item"><div class="v">${pct}</div><div class="k">good share</div></div>
+            <div class="item"><div class="v">${m.cur.pos}</div><div class="k">good</div></div>
+            <div class="item"><div class="v">${m.cur.neg}</div><div class="k">not good</div></div>
+          </div>
+        </div>
+        <div class="dog-wrap">${dogSVG(m.mood)}</div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="panel">
+        <h2>Eight weeks · share of entries that were good</h2>
+        ${sparkline(BX.shareSeries(kid, 56))}
+        <div class="cap">The line is a rolling seven-day share, so it does not jump around
+        just because one day was busy. The bars underneath are how many entries were logged
+        each day — if the line moves at the same time the bars spike, that is a change in
+        how much got recorded, not necessarily a change in behavior.</div>
+      </div>
+
+      <div class="panel">
+        <h2>This week vs last, by kind</h2>
+        ${catBars(m)}
+      </div>
+
+      <div class="panel">
+        <h2>Six weeks · one square per day</h2>
+        ${calendar(BX.daySeries(kid, 42))}
+        <div class="cap">Green means more good than not that day; brown the other way.
+        Blank days had nothing logged.</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <a href="index.html">← Log</a>
+      <span>Updated ${new Date().toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</span>
+    </div>`;
+
+  if (m.mood === "up" || m.mood === "steady") drawBlooms(m, kid);
+}
+
+/* Parents-only overview: both girls, side by side, numbers not visuals.
+   Deliberately plain — the pretty per-kid screens are for them. */
+function renderParents() {
+  document.documentElement.setAttribute("data-mood", "steady");
+  let html = '<div class="pair">';
+  for (const kid of ["laura", "julia"]) {
+    const m = BX.metrics(kid);
+    const c = headlineFor(m, KIDS[kid].name);
+    const pct = m.cur.share === null ? "—" : Math.round(m.cur.share * 100) + "%";
+    html += `<div class="pcard" data-mood="${m.mood}">
+      <div class="pcard-head">
+        <div class="dog-wrap">${dogSVG(m.mood)}</div>
+        <div>
+          <div class="nm">${KIDS[kid].name}</div>
+          <div class="md">${m.mood === "insufficient" ? "not enough data" : m.mood}</div>
+        </div>
+      </div>
+      <div class="stat">
+        <div class="item"><div class="v">${pct}</div><div class="k">good share</div></div>
+        <div class="item"><div class="v">${m.cur.pos}</div><div class="k">good</div></div>
+        <div class="item"><div class="v">${m.cur.neg}</div><div class="k">not good</div></div>
+      </div>
+      <div class="line">${esc(c.sub)}</div>
+      ${sparkline(BX.shareSeries(kid, 56))}
+      <div class="line"><a href="wall.html?kid=${kid}" style="color:inherit">Her screen →</a></div>
+    </div>`;
+  }
+  html += '</div><div class="foot"><a href="index.html">← Log</a><span>Parents\' view</span></div>';
+  document.getElementById("root").innerHTML = html;
+}
+
+/* ==================== SVG PIECES ==================== */
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+}
+
+function sparkline(series) {
+  // L is a left gutter so the 50% reference label sits outside the plot
+  // area instead of colliding with the series wherever it crosses.
+  const W = 1000, H = 190, VH = 46, pad = 4, L = 86;
+  const n = series.length;
+  const x = i => L + (i / (n - 1)) * (W - L);
+  const y = s => pad + (1 - s) * (H - 2 * pad);
+
+  // Break the path wherever the window was too thin to be meaningful.
+  let paths = [], cur = [];
+  series.forEach((p, i) => {
+    if (p.share === null) { if (cur.length > 1) paths.push(cur); cur = []; }
+    else cur.push(x(i).toFixed(1) + "," + y(p.share).toFixed(1));
+  });
+  if (cur.length > 1) paths.push(cur);
+  const d = paths.map(p => "M" + p.join(" L")).join(" ");
+
+  const maxN = Math.max(1, ...series.map(p => p.n));
+  const bars = series.map((p, i) =>
+    p.n ? `<rect x="${(x(i) - 3.2).toFixed(1)}" y="${(VH - (p.n / maxN) * VH).toFixed(1)}"
+      width="6.4" height="${((p.n / maxN) * VH).toFixed(1)}" rx="1.5" fill="var(--faint)"/>` : ""
+  ).join("");
+
+  const first = series.find(p => p.share !== null);
+  const lastPt = [...series].reverse().find(p => p.share !== null);
+  const lastIdx = lastPt ? series.lastIndexOf(lastPt) : -1;
+
+  return `<svg viewBox="0 0 ${W} ${H + 14 + VH}" style="height:clamp(200px,26vh,290px)">
+    <line x1="${L}" y1="${y(0.5)}" x2="${W}" y2="${y(0.5)}" stroke="var(--line)" stroke-dasharray="4 6"/>
+    <text x="${L - 12}" y="${y(0.5) + 5}" font-size="15" fill="var(--faint)" text-anchor="end">half</text>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="3.4"
+      stroke-linecap="round" stroke-linejoin="round"/>
+    ${lastIdx >= 0 ? `<circle cx="${x(lastIdx).toFixed(1)}" cy="${y(lastPt.share).toFixed(1)}"
+      r="6" fill="var(--accent)"/>` : ""}
+    <g transform="translate(0,${H + 14})">${bars}
+      <text x="0" y="${VH + 15}" font-size="14" fill="var(--faint)">entries logged per day</text>
+    </g>
+    ${first ? `<text x="${L}" y="${H - 4}" font-size="14" fill="var(--faint)">${shortDate(series[0].day)}</text>` : ""}
+    <text x="${W}" y="${H - 4}" font-size="14" fill="var(--faint)" text-anchor="end">today</text>
+  </svg>`;
+}
+
+function catBars(m) {
+  const ids = new Set([...Object.keys(m.cur.byTag), ...Object.keys(m.prev.byTag)]);
+  const rows = [...ids].map(id => {
+    const c = m.cur.byTag[id] || { pos: 0, neg: 0 };
+    const p = m.prev.byTag[id] || { pos: 0, neg: 0 };
+    return { id, now: c.pos + c.neg, before: p.pos + p.neg, pol: (BX.catalog[id] || {}).pol || 0 };
+  }).filter(r => r.now || r.before)
+    .sort((a, b) => b.now - a.now)
+    .slice(0, 7);
+
+  if (!rows.length) return '<div class="cap">Nothing logged in the last two weeks.</div>';
+  const max = Math.max(1, ...rows.map(r => Math.max(r.now, r.before)));
+
+  return rows.map(r => {
+    const col = r.pol > 0 ? "var(--pos)" : "var(--neg)";
+    const label = (BX.catalog[r.id] || {}).label || r.id;
+    return `<div class="catrow">
+      <div class="nm">${esc(label)}</div>
+      <div class="bars">
+        <div class="bar" style="width:${(r.now / max) * 100}%;background:${col}"></div>
+        <div class="bar" style="width:${(r.before / max) * 100}%;background:var(--faint)"></div>
+      </div>
+      <div class="n">${r.now} <span style="opacity:.5">/ ${r.before}</span></div>
+    </div>`;
+  }).join("") +
+  '<div class="cap">Solid bar is this week, faint bar is last week.</div>';
+}
+
+function calendar(days) {
+  const cell = 30, gap = 6;
+  // Pad the front so columns line up as weeks (Sunday-first).
+  const firstDow = new Date(days[0].day + "T00:00:00Z").getUTCDay();
+  const padded = Array(firstDow).fill(null).concat(days);
+  const cols = Math.ceil(padded.length / 7);
+  const W = cols * (cell + gap), H = 7 * (cell + gap);
+
+  const maxAbs = Math.max(1, ...days.map(d => Math.abs(d.net)));
+  const squares = padded.map((d, i) => {
+    const cx = Math.floor(i / 7) * (cell + gap), cy = (i % 7) * (cell + gap);
+    if (!d) return "";
+    let fill = "var(--line)", op = 1;
+    if (d.n) {
+      fill = d.net > 0 ? "var(--pos)" : (d.net < 0 ? "var(--neg)" : "var(--faint)");
+      op = d.net === 0 ? .55 : 0.28 + 0.72 * (Math.abs(d.net) / maxAbs);
+    }
+    return `<rect x="${cx}" y="${cy}" width="${cell}" height="${cell}" rx="7"
+      fill="${fill}" opacity="${op.toFixed(2)}"><title>${d.day}: ${d.pos} good, ${d.neg} not</title></rect>`;
+  }).join("");
+
+  return `<svg viewBox="0 0 ${W} ${H}" style="max-width:${W}px;height:auto">${squares}</svg>`;
+}
+
+/* Blooms: one soft petal per good thing logged this week. They
+   accumulate as the week goes well, which is the whole point —
+   the background literally fills in. Positions are deterministic
+   so the field doesn't reshuffle on every re-render. */
+function drawBlooms(m, kid) {
+  const svg = document.getElementById("blooms");
+  if (!svg) return;
+  const count = Math.min(m.cur.pos, 44);
+  const moving = m.mood === "up";
+  let seed = kid.charCodeAt(0) * 977 + count;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+
+  let out = `<defs><radialGradient id="pg">
+      <stop offset="0%" stop-color="var(--pos)" stop-opacity="${moving ? .5 : .26}"/>
+      <stop offset="100%" stop-color="var(--pos)" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ag">
+      <stop offset="0%" stop-color="var(--accent)" stop-opacity="${moving ? .42 : .2}"/>
+      <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+    </radialGradient></defs>`;
+
+  for (let i = 0; i < count; i++) {
+    const cx = rnd() * 100, cy = rnd() * 100;
+    const r = 5 + rnd() * 13;
+    const g = rnd() > .45 ? "pg" : "ag";
+    const dur = (12 + rnd() * 14).toFixed(1);
+    out += `<circle cx="${cx.toFixed(2)}%" cy="${cy.toFixed(2)}%" r="${r.toFixed(1)}%" fill="url(#${g})">`;
+    if (moving) {
+      out += `<animate attributeName="r" values="${r.toFixed(1)}%;${(r * 1.22).toFixed(1)}%;${r.toFixed(1)}%"
+        dur="${dur}s" repeatCount="indefinite"/>`;
+    }
+    out += `</circle>`;
+  }
+  svg.innerHTML = out;
+}
+</script>
+</body>
+</html>
