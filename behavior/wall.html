@@ -122,7 +122,12 @@ svg{display:block;width:100%;height:auto;overflow:visible}
 .catrow .n{width:4.2em;flex-shrink:0;font-size:.74rem;color:var(--faint);font-variant-numeric:tabular-nums}
 .panel{position:relative}
 .tip{position:absolute;pointer-events:none;opacity:0;transition:opacity .12s;
-  background:var(--ink);color:var(--bg);border-radius:11px;padding:8px 11px;
+  /* NOT var(--bg) — that variable belongs to the logger's palette and is
+     undefined here, which made `color` fall back to inherited (--ink), i.e.
+     the same colour as this element's own background. The tooltip rendered
+     as a blank pill with its text painted invisibly on itself. --bg1 is the
+     page ground and contrasts with --ink in every mood. */
+  background:var(--ink);color:var(--bg1);border-radius:11px;padding:8px 11px;
   font-size:.8rem;line-height:1.35;white-space:nowrap;z-index:5;
   box-shadow:0 6px 20px rgba(0,0,0,.28);transform:translate(-50%,-124%)}
 .tip.on{opacity:1}
