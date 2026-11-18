@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Piggy Bank">
+<meta name="theme-color" content="#EDF1F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E131A" media="(prefers-color-scheme: dark)">
+<meta name="robots" content="noindex, nofollow">
+<title>Piggy Bank</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!--
+  PIGGY BANK — Laura, Julia, Marina
+  Same setup as the behavior log: a static page on GitHub Pages, data in the
+  star-tracker Firebase Realtime Database under families/{CODE}/piggybank, so it
+  can't touch the behavior, potty or routine data. The family code is the only secret.
+
+  How the money grows (balances are never stored; they are replayed from the
+  full history on every load, so backdated entries and late rate data correct
+  everything after them):
+    - Interest: each night, on the day's closing balance, at the effective fed
+      funds rate (FRED series DFF) / 360, compounded daily. Act/360 is how fed
+      funds is quoted, so the kids earn the actual overnight rate.
+    - Allowance: paid on the 1st of each month, per kid, from a schedule of
+      (starting month, amount) entries; the latest one whose month has started applies.
+    - Deposits / withdrawals: dated one-off entries, backdatable to 2025-01-01.
+      Anything that would push a balance below zero on any day is refused.
+  Rates: rates.json next to this page, refreshed daily from FRED by the GitHub
+  Action .github/workflows/piggybank-rates.yml on the main branch. Days after
+  FRED's last observation use the last rate until new data arrives.
+-->
+<style>
+/* Layout: three piggy-bank tabs on top; the chosen kid's balance, growth chart and allowance beside a passbook ledger; one column on phones. */
+:root {
+  --bg: #EDF1F6; --surface: #FFFFFF; --sunk: #F5F7FA; --ink: #172031; --muted: #586377; --line: #D8DEE8;
+  --laura: #C2395F; --julia: #0B7A6A; --marina: #2A5BC0; --on-kid: #FFFFFF;
+  --plus: #167A47; --minus: #B1383A;
+  --kid: var(--laura);
+  --f-display: "Fredoka", "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0E131A; --surface: #161D27; --sunk: #121821; --ink: #E6EBF2; --muted: #9BA6B8; --line: #273141;
+    --laura: #F27D9B; --julia: #46C7B1; --marina: #7FA6F5; --on-kid: #0E131A;
+    --plus: #4CC583; --minus: #F08080; color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); min-height: 100dvh; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 18px 56px; display: flex; flex-direction: column; gap: 18px; }
+h1, h2, h3 { text-wrap: balance; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-pig { width: 42px; height: 32px; color: var(--ink); }
+.brand h1 { font: 600 23px/1.1 var(--f-display); margin: 0; }
+.brand p { margin: 0; color: var(--muted); font-size: 13px; }
+.top-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rate { display: flex; align-items: baseline; gap: 8px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 12.5px; color: var(--muted); }
+.rate b { font: 600 17px/1 var(--f-display); color: var(--ink); }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); opacity: .5; flex: none; }
+.dot.on { background: var(--plus); opacity: 1; }
+.banner { background: var(--kid); color: var(--on-kid); font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; text-align: center; padding: 7px 12px; }
+
+.tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tab { appearance: none; -webkit-appearance: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; min-width: 0;
+  display: flex; flex-direction: column; gap: 1px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line); background: var(--surface); --cut: var(--surface); transition: background-color .15s, border-color .15s; }
+.tab svg { width: 36px; height: 27px; color: var(--c); margin-bottom: 4px; }
+.tab .nm { font: 600 18px/1.2 var(--f-display); }
+.tab .bl { font: 500 15px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tab[aria-selected="true"] { border-color: var(--c); background: var(--surface); background: color-mix(in srgb, var(--c) 11%, var(--surface)); --cut: color-mix(in srgb, var(--c) 11%, var(--surface)); box-shadow: inset 0 0 0 1px var(--c); }
+.tab[aria-selected="true"] .bl { color: var(--ink); }
+.pig-cut { fill: var(--cut, var(--surface)); }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; min-width: 0; }
+.panel h2 { font: 600 19px/1.2 var(--f-display); margin: 0; }
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.muted { color: var(--muted); font-size: 13px; }
+
+.who { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 14px; }
+.hero-pig { width: 46px; height: 35px; color: var(--kid); flex: none; }
+.big { font: 600 clamp(42px, 11vw, 62px)/1.05 var(--f-display); font-variant-numeric: tabular-nums; letter-spacing: -0.5px; margin: 8px 0 4px; }
+.earn { margin: 0; color: var(--muted); }
+.earn strong { color: var(--kid); font-weight: 600; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.stat { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); line-height: 1.3; }
+.stat .v { font: 500 16px/1.3 var(--f-mono); font-variant-numeric: tabular-nums; }
+.stat .s { font-size: 12px; color: var(--muted); }
+
+.chart { margin-top: 16px; min-height: 40px; }
+.chart svg { display: block; width: 100%; height: auto; }
+.ch-base { stroke: var(--line); stroke-width: 1; }
+.ch-area { fill: var(--kid); fill-opacity: .14; stroke: none; }
+.ch-line { fill: none; stroke: var(--kid); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.ch-proj { fill: none; stroke: var(--kid); stroke-width: 2; stroke-dasharray: 5 5; stroke-opacity: .85; }
+.ch-today { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+.ch-dot { fill: var(--kid); stroke: var(--surface); stroke-width: 2; }
+.ch-t { fill: var(--muted); font: 500 11px var(--f-mono); }
+.ch-end { fill: var(--ink); font: 600 12.5px var(--f-mono); }
+.ch-note { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.example { background: var(--sunk); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+.example p { margin: 0; }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+.btn { appearance: none; -webkit-appearance: none; font: 600 14px/1.2 var(--f-body); border-radius: 12px; padding: 11px 18px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; text-decoration: none; display: inline-block; }
+.btn.primary { background: var(--kid); border-color: var(--kid); color: var(--on-kid); }
+.btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
+.btn:disabled { opacity: .55; cursor: default; }
+.link { appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; font: inherit; color: var(--kid); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.link.danger { color: var(--minus); }
+.tab:focus-visible, .btn:focus-visible, .link:focus-visible, input:focus-visible { outline: 2px solid var(--kid); outline-offset: 2px; }
+
+.sheet { margin-top: 14px; padding: 14px; border-radius: 14px; background: var(--sunk); border: 1px solid var(--line); display: grid; gap: 12px; }
+.sheet h3 { margin: 0; font: 600 16px/1.3 var(--f-display); }
+.sheet .actions { margin-top: 0; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); min-width: 0; }
+.field input { font: 16px/1.3 var(--f-body); padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); width: 100%; min-width: 0; }
+.hint { margin: 0; font-size: 12.5px; color: var(--muted); }
+.msg { margin: 0; font-size: 13px; color: var(--minus); }
+.msg:empty { display: none; }
+
+.pb { list-style: none; margin: 8px 0 0; padding: 0; }
+.pb-year { font: 600 12px var(--f-mono); letter-spacing: .1em; color: var(--muted); padding: 14px 0 6px; border-bottom: 1.5px solid var(--ink); }
+.pb-row { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.pb-date { font: 400 12.5px var(--f-mono); color: var(--muted); }
+.pb-desc { min-width: 0; overflow-wrap: anywhere; }
+.pb-desc small { display: block; font-size: 12px; color: var(--muted); margin-top: 1px; }
+.pb-row.interest .pb-desc { font-weight: 500; }
+.pb-row.interest .pb-desc::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--kid); margin-right: 7px; vertical-align: 1px; }
+.pb-num { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; }
+.pb-amt { font: 500 14px var(--f-mono); }
+.pb-amt.plus { color: var(--plus); }
+.pb-amt.minus { color: var(--minus); }
+.pb-bal { font: 400 12.5px var(--f-mono); color: var(--muted); }
+.more { margin-top: 12px; font-size: 14px; }
+.empty { color: var(--muted); margin: 12px 0 0; }
+
+.lead { margin: 10px 0 0; }
+.sched { list-style: none; margin: 12px 0 0; padding: 0; }
+.sched li { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
+.sched .mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.sched .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--kid); margin-left: 6px; }
+.sched .tools { flex-basis: 100%; font-size: 12.5px; color: var(--muted); }
+
+.how { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; }
+.how p { margin: 10px 0 0; max-width: 65ch; }
+.how h3 { font: 600 15px/1.3 var(--f-display); margin: 0; }
+.fine { font-size: 13px; color: var(--muted); }
+.warn { font-size: 13px; color: var(--minus); }
+.rates { list-style: none; margin: 8px 0 0; padding: 0; font-variant-numeric: tabular-nums; }
+.rates li { display: grid; grid-template-columns: minmax(0, 1fr) auto 1.2em; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.rates .r { font-family: var(--f-mono); }
+.rates .up { color: var(--plus); } .rates .down { color: var(--minus); }
+
+.phone p { margin: 10px 0 0; max-width: 65ch; }
+.code { font: 600 18px var(--f-mono); letter-spacing: .14em; background: var(--sunk); border: 1px dashed var(--line); border-radius: 10px; padding: 6px 12px; display: inline-block; user-select: all; }
+.kidbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.foot { color: var(--muted); font-size: 13px; text-align: center; display: flex; gap: 6px 18px; justify-content: center; flex-wrap: wrap; }
+.foot a, .foot button { color: var(--muted); }
+
+.setup { min-height: 90dvh; justify-content: center; align-items: center; text-align: center; max-width: 420px; }
+.setup .brand-pig { width: 84px; height: 63px; color: var(--laura); }
+.setup h1 { font: 600 30px/1.1 var(--f-display); margin: 0; }
+.setup p { color: var(--muted); margin: 0; }
+.setup input { font: 600 20px var(--f-mono); letter-spacing: .16em; text-transform: uppercase; text-align: center; width: 100%; padding: 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+.setup .btn { width: 100%; padding: 14px; font-size: 15px; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 20; max-width: calc(100% - 32px);
+  background: var(--ink); color: var(--bg); padding: 11px 16px; border-radius: 12px; font-size: 14px; box-shadow: 0 8px 28px rgba(0, 0, 0, .2); }
+
+@media (max-width: 820px) {
+  .grid, .how { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  .panel { padding: 15px; }
+  .tab { padding: 10px 11px; }
+  .tab .nm { font-size: 16px; }
+  .tab .bl { font-size: 13.5px; }
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .stats { gap: 8px; }
+  .stat .v { font-size: 14.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .tab { transition: none; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Firebase: the star-tracker project the behavior log uses, own subtree ---------- */
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyAAkzMXByWPdJ2kve26-fu1XD75NU4S9Ho",
+    authDomain: "star-tracker-9b5d6.firebaseapp.com",
+    databaseURL: "https://star-tracker-9b5d6-default-rtdb.firebaseio.com",
+    projectId: "star-tracker-9b5d6",
+    storageBucket: "star-tracker-9b5d6.firebasestorage.app",
+    appId: "1:456025896569:web:2835f1bf031e0f80f846a8"
+  };
+  var DB_PATH = 'piggybank';
+  var CODE_KEY = 'piggybank-code';
+  var BEHAVIOR_CODE_KEY = 'behavior-tracker-code';   // same origin, so the behavior log's code is readable here
+  var LOCK_KEY = 'piggybank-kid-lock';
+  var CACHE_PREFIX = 'piggybank-cache-';
+  var OUTBOX_PREFIX = 'piggybank-outbox-';
+  var RATES_KEY = 'piggybank-rates';
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+
+  var KIDS = [{ id: 'laura', name: 'Laura' }, { id: 'julia', name: 'Julia' }, { id: 'marina', name: 'Marina' }];
+  var MIN_DATE = '2025-01-01';
+  var app = document.getElementById('app');
+  var DEMO = /[?&]demo=1\b/.test(location.search);
+
+  /* ---------- Dates: whole days, "today" in Eastern Time like the behavior log ---------- */
+  var DAY = 86400000;
+  function dn(s) { return Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / DAY; }
+  function ds(n) { return new Date(n * DAY).toISOString().slice(0, 10); }
+  function pad(x) { return (x < 10 ? '0' : '') + x; }
+  function etToday() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  var TODAY_S = etToday(), TODAY = dn(TODAY_S), YM_NOW = TODAY_S.slice(0, 7);
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function fmtDay(n, withYear) { var s = ds(n), t = MON[+s.slice(5, 7) - 1] + ' ' + (+s.slice(8, 10)); return withYear ? t + ', ' + s.slice(0, 4) : t; }
+  function fmtYM(ym) { return MON[+ym.slice(5, 7) - 1] + ' ' + ym.slice(0, 4); }
+  function addMonths(ym, k) { var y = +ym.slice(0, 4), m = +ym.slice(5, 7) - 1 + k; y += Math.floor(m / 12); m = ((m % 12) + 12) % 12; return y + '-' + pad(m + 1); }
+
+  /* ---------- Money ---------- */
+  var USD = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+  function money(v) { return USD.format(Math.abs(v) < 0.005 ? 0 : v); }
+  function signed(v) { return (v < 0 ? '−' : '+') + USD.format(Math.abs(v)); }
+  function pct(r) { return r.toFixed(2) + '%'; }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function parseAmount(s) {
+    s = String(s || '').replace(/[$,\s]/g, '');
+    if (s === '' || s === '.' || !/^\d*(\.\d{0,2})?$/.test(s)) return NaN;
+    return Math.round(parseFloat(s) * 100) / 100;
+  }
+  function nameOf(id) { for (var i = 0; i < KIDS.length; i++) if (KIDS[i].id === id) return KIDS[i].name; return id; }
+  function isKid(id) { return KIDS.some(function (k) { return k.id === id; }); }
+
+  /* ---------- Data ----------
+     data   = last snapshot of families/{CODE}/piggybank from Firebase (cached in localStorage)
+     outbox = writes not yet acknowledged by the server: "tx/<id>" -> value, or null for a delete.
+              Kept in localStorage so an entry made offline survives closing the page;
+              cleared only by the server's acknowledgement (same rule as the behavior log). */
+  var code = '', ref = null, online = false, loaded = false;
+  var data = { tx: {}, allowance: {}, manualRates: {} };
+  var outbox = {};
+  var rates = { points: [], lastObs: null }, ratesFailed = false;
+  var state = null;   // merged view used for rendering, rebuilt by render()
+
+  function buildState() {
+    var m = { tx: Object.assign({}, data.tx), allowance: Object.assign({}, data.allowance), manualRates: Object.assign({}, data.manualRates) };
+    Object.keys(outbox).forEach(function (p) {
+      var i = p.indexOf('/'), coll = p.slice(0, i), id = p.slice(i + 1);
+      if (!m[coll]) return;
+      if (outbox[p] === null) delete m[coll][id]; else m[coll][id] = outbox[p];
+    });
+    function list(o) { return Object.keys(o).map(function (id) { return Object.assign({ id: id }, o[id]); }); }
+    var tx = list(m.tx);
+    // "syncing" label: this entry is still waiting for the server's acknowledgement
+    tx.forEach(function (t) { t.pending = Object.prototype.hasOwnProperty.call(outbox, 'tx/' + t.id); });
+    return { tx: tx, allowance: list(m.allowance), rates: { points: rates.points || [], lastObs: rates.lastObs || null, manual: list(m.manualRates) } };
+  }
+  function persist() {
+    if (DEMO || !code) return;
+    lsSet(CACHE_PREFIX + code, JSON.stringify(data));
+    lsSet(OUTBOX_PREFIX + code, JSON.stringify(outbox));
+  }
+  function newId() {
+    try { return firebase.database().ref().push().key; }
+    catch (e) { return 'local' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  }
+  function write(path, value) {
+    outbox[path] = value;
+    persist();
+    render();
+    send(path, value);
+  }
+  function send(path, value) {
+    if (DEMO || !ref) return;
+    try {
+      ref.child(path).set(value, function (err) {
+        if (err) { toast('Not saved yet (' + (err.code || 'error') + '). It will retry when the connection is back.'); return; }
+        if (outbox[path] === value) { delete outbox[path]; persist(); render(); }
+      });
+    } catch (e) { /* stays in the outbox, retried on next connect */ }
+  }
+
+  function connect(c) {
+    code = c;
+    lsSet(CODE_KEY, c);
+    try {
+      var cached = JSON.parse(lsGet(CACHE_PREFIX + c) || 'null');
+      if (cached) data = { tx: cached.tx || {}, allowance: cached.allowance || {}, manualRates: cached.manualRates || {} };
+      outbox = JSON.parse(lsGet(OUTBOX_PREFIX + c) || '{}') || {};
+    } catch (e) { outbox = {}; }
+    render();   // paint from cache right away
+    if (typeof firebase === 'undefined') { toast('Offline: showing the last copy saved on this phone.'); return; }
+    try { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); }
+    catch (e) { toast('Could not reach the database. Showing the last saved copy.'); return; }
+    ref = firebase.database().ref('families/' + c + '/' + DB_PATH);
+    ref.on('value', function (snap) {
+      var v = snap.val() || {};
+      data = { tx: v.tx || {}, allowance: v.allowance || {}, manualRates: v.manualRates || {} };
+      loaded = true;
+      persist();
+      render();
+    }, function (err) { toast('Could not read the bank (' + (err.code || 'error') + ').'); });
+    firebase.database().ref('.info/connected').on('value', function (s) {
+      online = !!s.val();
+      if (online) Object.keys(outbox).forEach(function (p) { send(p, outbox[p]); });
+      render();
+    });
+  }
+
+  function loadRates() {
+    try { var c = JSON.parse(lsGet(RATES_KEY) || 'null'); if (c && c.points) rates = c; } catch (e) {}
+    fetch('rates.json?v=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) { rates = j; ratesFailed = false; lsSet(RATES_KEY, JSON.stringify(j)); render(); })
+      .catch(function () { ratesFailed = !(rates.points && rates.points.length); render(); });
+  }
+
+  /* ---------- Interest rate: FRED DFF change points, then hand-entered changes after FRED's last day ---------- */
+  function ratePoints(st) {
+    var r = st.rates || {};
+    var pts = (r.points || []).map(function (p) { return [dn(p[0]), +p[1]]; });
+    var last = r.lastObs ? dn(r.lastObs) : (pts.length ? pts[pts.length - 1][0] : -1e9);
+    (r.manual || []).forEach(function (m) { var d = dn(m.from); if (d > last) pts.push([d, +m.rate]); });
+    pts.sort(function (a, b) { return a[0] - b[0]; });
+    return pts;
+  }
+  function rateFn(st) {
+    var pts = ratePoints(st), i = 0;
+    return function (n) {
+      if (!pts.length) return 0;
+      if (n < pts[i][0]) i = 0;
+      while (i + 1 < pts.length && pts[i + 1][0] <= n) i++;
+      return pts[i][1];
+    };
+  }
+
+  /* ---------- Allowance: latest schedule entry whose month has started ---------- */
+  function allowFn(st, kid) {
+    var list = st.allowance.filter(function (a) { return a.kid === kid; })
+      .sort(function (a, b) { return a.from < b.from ? -1 : a.from > b.from ? 1 : (a.t || 0) - (b.t || 0); });
+    return function (ym) { var amt = 0; for (var i = 0; i < list.length && list[i].from <= ym; i++) amt = +list[i].amount; return amt; };
+  }
+
+  /* ---------- The ledger: replay every day from the first activity to endN ----------
+     Each day: allowance (on the 1st), then that day's deposits/withdrawals, then overnight
+     interest on the closing balance at DFF/360 (not yet for endN itself). Interest is shown
+     as one passbook line per month. */
+  function simulate(st, kid, endN) {
+    var txs = st.tx.filter(function (t) { return t.kid === kid && dn(t.date) <= endN; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.t || 0) - (b.t || 0); });
+    var start = Infinity;
+    if (txs.length) start = dn(txs[0].date);
+    st.allowance.forEach(function (a) { if (a.kid === kid && +a.amount > 0) start = Math.min(start, dn(a.from + '-01')); });
+    var out = { events: [], path: [], bal: 0, monthInt: 0, totalInt: 0, minBal: 0, negAt: null, start: start, empty: !(start <= endN) };
+    if (out.empty) return out;
+    var allow = allowFn(st, kid), rate = rateFn(st);
+    var bal = 0, mInt = 0, tInt = 0, ti = 0, minBal = Infinity;
+    for (var n = start; n <= endN; n++) {
+      var s = ds(n);
+      if (n === endN) {
+        out.monthInt = mInt;
+        if (mInt !== 0) out.events.push({ n: n - 1, type: 'interest', partial: true, amount: mInt, bal: bal, ym: ds(n - 1).slice(0, 7) });
+      }
+      if (s.slice(8) === '01') {
+        var a = allow(s.slice(0, 7));
+        if (a > 0) { bal += a; out.events.push({ n: n, type: 'allowance', amount: a, bal: bal }); }
+      }
+      while (ti < txs.length && txs[ti].date === s) {
+        var t = txs[ti++];
+        bal += +t.amount;
+        out.events.push({ n: n, type: 'tx', amount: +t.amount, bal: bal, tx: t });
+      }
+      out.path.push([n, bal]);
+      if (bal < minBal) minBal = bal;
+      if (bal < -0.005 && out.negAt === null) out.negAt = n;
+      if (n < endN) {
+        var i = bal * rate(n) / 36000;
+        bal += i; mInt += i; tInt += i;
+        if (ds(n + 1).slice(8) === '01') {
+          if (mInt !== 0) out.events.push({ n: n, type: 'interest', amount: mInt, bal: bal, ym: s.slice(0, 7) });
+          mInt = 0;
+        }
+      }
+    }
+    out.bal = bal; out.totalInt = tInt; out.minBal = minBal;
+    return out;
+  }
+
+  /* ---------- View state ---------- */
+  var lock = lsGet(LOCK_KEY);
+  if (!isKid(lock)) lock = null;
+  var ui = { form: null, showAll: false, confirm: null, unlock: false };
+  function kidFromHash() { var h = (location.hash || '').slice(1).toLowerCase(); return isKid(h) ? h : null; }
+  function kidFromQuery() { var m = /[?&]kid=([a-z]+)/.exec(location.search); return m && isKid(m[1]) ? m[1] : null; }
+  var cur = lock || kidFromHash() || kidFromQuery() || 'laura';
+  function editor() { return !lock; }
+
+  /* ---------- Pieces of the page ---------- */
+  function pig(cls) {
+    return '<svg class="' + (cls || '') + '" viewBox="0 0 40 30" aria-hidden="true">' +
+      '<path d="M7.6 15.6c-3 .3-4.7-1.6-3.6-3.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>' +
+      '<path d="M12.4 9.6 14.8 3.4l4.8 5.4z" fill="currentColor"/>' +
+      '<ellipse cx="20" cy="17" rx="13.6" ry="9.8" fill="currentColor"/>' +
+      '<rect x="30" y="12.8" width="7.8" height="7.8" rx="3.3" fill="currentColor"/>' +
+      '<rect x="11" y="22.6" width="4.4" height="6.6" rx="1.7" fill="currentColor"/>' +
+      '<rect x="24.4" y="22.6" width="4.4" height="6.6" rx="1.7" fill="currentColor"/>' +
+      '<rect class="pig-cut" x="15.8" y="9.3" width="8.8" height="2" rx="1"/>' +
+      '<circle class="pig-cut" cx="27.4" cy="14.2" r="1.3"/>' +
+      '<circle class="pig-cut" cx="33.3" cy="16.7" r=".8"/><circle class="pig-cut" cx="35.5" cy="16.7" r=".8"/>' +
+      '</svg>';
+  }
+  function stat(k, v, s) { return '<div class="stat"><span class="k">' + k + '</span><span class="v">' + v + '</span><span class="s">' + s + '</span></div>'; }
+
+  function header(rNow) {
+    var last = state.rates.lastObs;
+    return '<header class="top"><div class="brand">' + pig('brand-pig') +
+      '<div><h1>' + (lock ? nameOf(lock) + '’s Piggy Bank' : 'Piggy Bank') + '</h1><p>' + (lock ? 'Growing every night' : 'Laura · Julia · Marina') + '</p></div></div>' +
+      '<div class="top-right"><div class="rate" title="Effective federal funds rate, FRED series DFF"><span>Fed funds rate</span><b>' + pct(rNow) + '</b>' +
+      (last ? '<span>FRED · ' + fmtDay(dn(last)) + '</span>' : '') + '</div>' +
+      (DEMO ? '' : '<span class="dot' + (online ? ' on' : '') + '" title="' + (online ? 'Connected' : 'Offline: showing the copy saved on this phone') + '"></span>') +
+      '</div></header>';
+  }
+
+  function tabs(led) {
+    if (lock) return '';
+    return '<nav class="tabs" role="tablist" aria-label="Accounts">' + KIDS.map(function (k) {
+      return '<button class="tab" role="tab" type="button" data-act="kid" data-kid="' + k.id + '" aria-selected="' + (k.id === cur) + '" style="--c: var(--' + k.id + ')">' +
+        pig() + '<span class="nm">' + k.name + '</span><span class="bl">' + money(led[k.id].bal) + '</span></button>';
+    }).join('') + '</nav>';
+  }
+
+  function hero(k, L, rNow) {
+    var h = '<section class="panel hero"><div class="who">' + pig('hero-pig') + '<span>' + k.name + '’s piggy bank · ' + fmtDay(TODAY, true) + '</span></div>';
+    h += '<div class="big">' + money(L.bal) + '</div>';
+    if (L.bal > 0.005 && rNow > 0) {
+      var d = L.bal * rNow / 36000;
+      h += '<p class="earn">Earning about <strong>' + (d < 1 ? (d * 100).toFixed(1) + '¢' : money(d)) + ' a day</strong> at ' + pct(rNow) + ' a year.</p>';
+    } else {
+      h += '<p class="earn">' + (L.empty ? 'Nothing saved yet. ' : '') + 'Interest starts once there is money inside.</p>';
+    }
+    var allow = allowFn(state, k.id), nextYm = addMonths(YM_NOW, 1), nextAmt = allow(nextYm);
+    h += '<div class="stats">' +
+      stat('Interest this month', money(L.monthInt), 'since ' + MON[+YM_NOW.slice(5, 7) - 1] + ' 1') +
+      stat('Interest in total', money(L.totalInt), L.empty ? 'all time' : 'since ' + fmtYM(ds(L.start).slice(0, 7))) +
+      stat('Allowance', nextAmt > 0 ? money(nextAmt) : 'None', nextAmt > 0 ? 'next on ' + MON[+nextYm.slice(5, 7) - 1] + ' 1' : 'none planned') +
+      '</div>';
+    h += '<div class="chart"></div>';
+    if (editor()) {
+      if (ui.form === 'deposit' || ui.form === 'withdraw') h += txForm(k);
+      else h += '<div class="actions"><button class="btn primary" type="button" data-act="open" data-form="deposit">Deposit</button>' +
+        '<button class="btn" type="button" data-act="open" data-form="withdraw">Withdraw</button></div>';
+    }
+    return h + '</section>';
+  }
+
+  function txForm(k) {
+    var w = ui.form === 'withdraw';
+    return '<form class="sheet" id="f-tx" novalidate><h3>' + (w ? 'Take money out of ' : 'Put money into ') + k.name + '’s piggy bank</h3>' +
+      '<div class="fields"><label class="field">Amount in dollars<input id="tx-amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="20.00"></label>' +
+      '<label class="field">Date<input id="tx-date" name="date" type="date" value="' + TODAY_S + '" min="' + MIN_DATE + '" max="' + TODAY_S + '"></label></div>' +
+      '<label class="field">What is it for? (optional)<input id="tx-note" name="note" maxlength="60" autocomplete="off" placeholder="' + (w ? 'Book fair' : 'Birthday money from Grandma') + '"></label>' +
+      '<p class="msg" id="form-msg" role="alert"></p>' +
+      '<div class="actions"><button class="btn primary" type="submit" id="form-go">' + (w ? 'Withdraw' : 'Deposit') + '</button>' +
+      '<button class="btn ghost" type="button" data-act="cancel">Cancel</button></div></form>';
+  }
+
+  function allowancePanel(k) {
+    var list = state.allowance.filter(function (a) { return a.kid === k.id; })
+      .sort(function (a, b) { return a.from < b.from ? 1 : a.from > b.from ? -1 : 0; });
+    var nowAmt = allowFn(state, k.id)(YM_NOW);
+    var h = '<section class="panel"><div class="panel-head"><h2>Monthly allowance</h2></div>';
+    h += '<p class="lead">' + (nowAmt > 0 ? k.name + ' gets <strong>' + money(nowAmt) + '</strong> on the 1st of every month.' : 'No monthly allowance right now.') + '</p>';
+    if (list.length) {
+      h += '<ul class="sched">' + list.map(function (a) {
+        var tools = '';
+        if (editor()) {
+          tools = '<span class="tools">' + (ui.confirm === a.id
+            ? 'Remove this change? <button class="link danger" type="button" data-act="rm-al" data-id="' + esc(a.id) + '">Remove</button> · <button class="link" type="button" data-act="rm-no">Keep</button>'
+            : '<button class="link" type="button" data-act="ask-rm" data-id="' + esc(a.id) + '">Remove</button>') + '</span>';
+        }
+        return '<li><span>From ' + fmtYM(a.from) + (a.from > YM_NOW ? '<span class="tag">upcoming</span>' : '') + '</span>' +
+          '<span class="mono">' + (+a.amount > 0 ? money(+a.amount) + ' a month' : 'stops') + '</span>' + tools + '</li>';
+      }).join('') + '</ul>';
+    }
+    if (editor()) {
+      if (ui.form === 'allowance') {
+        h += '<form class="sheet" id="f-al" novalidate><h3>Change ' + k.name + '’s allowance</h3>' +
+          '<div class="fields"><label class="field">Dollars per month<input id="al-amount" inputmode="decimal" autocomplete="off" placeholder="10.00"></label>' +
+          '<label class="field">Starting month<input id="al-from" type="month" value="' + addMonths(YM_NOW, 1) + '" min="2025-01" placeholder="' + addMonths(YM_NOW, 1) + '"></label></div>' +
+          '<p class="hint">Enter 0 to stop the allowance. Starting this month or earlier adds the missed payments, with their interest, right away.</p>' +
+          '<p class="msg" id="form-msg" role="alert"></p>' +
+          '<div class="actions"><button class="btn primary" type="submit" id="form-go">Save allowance</button>' +
+          '<button class="btn ghost" type="button" data-act="cancel">Cancel</button></div></form>';
+      } else {
+        h += '<div class="actions"><button class="btn" type="button" data-act="open" data-form="allowance">Change allowance</button></div>';
+      }
+    }
+    return h + '</section>';
+  }
+
+  function passbook(k, L) {
+    var h = '<section class="panel"><div class="panel-head"><h2>Passbook</h2>' + (L.empty ? '' : '<span class="muted">newest first</span>') + '</div>';
+    if (L.empty) return h + '<p class="empty">' + (code && !loaded && !DEMO ? 'Loading…' : 'Deposits, withdrawals, allowances and the monthly interest will be listed here, with the balance after each one.') + '</p></section>';
+    var ev = L.events.slice().reverse(), show = ui.showAll ? ev : ev.slice(0, 20), year = null;
+    h += '<ol class="pb">';
+    show.forEach(function (e) {
+      var y = ds(e.n).slice(0, 4);
+      if (y !== year) { h += '<li class="pb-year">' + y + '</li>'; year = y; }
+      var desc, sub = '', tools = '';
+      if (e.type === 'interest') desc = (e.partial ? 'Interest so far in ' : 'Interest for ') + MONTH[+e.ym.slice(5, 7) - 1];
+      else if (e.type === 'allowance') desc = 'Monthly allowance';
+      else {
+        var kind = e.amount < 0 ? 'Withdrawal' : 'Deposit';
+        desc = e.tx.note ? esc(e.tx.note) : kind;
+        sub = (e.tx.note ? kind : '') + (e.tx.pending && !DEMO ? (e.tx.note ? ' · ' : '') + 'syncing' : '');
+        if (editor()) {
+          tools = ui.confirm === e.tx.id
+            ? 'Remove this entry? <button class="link danger" type="button" data-act="rm-tx" data-id="' + esc(e.tx.id) + '">Remove</button> · <button class="link" type="button" data-act="rm-no">Keep</button>'
+            : '<button class="link" type="button" data-act="ask-rm" data-id="' + esc(e.tx.id) + '">Remove</button>';
+        }
+      }
+      var small = sub + (sub && tools ? ' · ' : '') + tools;
+      h += '<li class="pb-row ' + e.type + '"><span class="pb-date">' + fmtDay(e.n) + '</span>' +
+        '<span class="pb-desc">' + desc + (small ? '<small>' + small + '</small>' : '') + '</span>' +
+        '<span class="pb-num"><span class="pb-amt ' + (e.amount < 0 ? 'minus' : 'plus') + '">' + signed(e.amount) + '</span>' +
+        '<span class="pb-bal">' + money(e.bal) + '</span></span></li>';
+    });
+    h += '</ol>';
+    if (ev.length > 20) h += '<button class="link more" type="button" data-act="more">' + (ui.showAll ? 'Show fewer' : 'Show all ' + ev.length + ' entries') + '</button>';
+    return h + '</section>';
+  }
+
+  function howItWorks(rNow) {
+    var r = state.rates, last = r.lastObs, stale = last ? TODAY - dn(last) : null;
+    var pts = ratePoints(state), moves = [];
+    if (pts.length) {
+      var level = pts[0][1];
+      moves.push({ n: pts[0][0], v: level, dir: 0 });
+      pts.forEach(function (p) { if (Math.abs(p[1] - level) >= 0.15) { moves.push({ n: p[0], v: p[1], dir: p[1] > level ? 1 : -1 }); level = p[1]; } });
+    }
+    var h = '<section class="panel how"><div><h2>How your money grows</h2>' +
+      '<p>Every night, each piggy bank earns interest at the <strong>federal funds rate</strong>, the rate banks charge each other to borrow money overnight. The Federal Reserve moves it up or down to keep prices steady and people working. Right now it is <strong>' + pct(rNow) + '</strong> a year.</p>' +
+      '<p>Interest is added every day, so the interest earns interest too. The passbook shows it as one line per month. Allowances arrive on the 1st of each month.</p>' +
+      '<p class="fine">For grown-ups: interest accrues daily on each day’s closing balance at the effective fed funds rate (FRED series DFF) divided by 360, the money-market convention, and compounds daily.' +
+      (last ? ' Rate data runs through ' + fmtDay(dn(last), true) + ' and refreshes from FRED every day. Later days use the latest rate until new data arrives, and every balance is recalculated when it does.' : '') + '</p>' +
+      (ratesFailed ? '<p class="warn">The interest rate could not be loaded, so no interest is being added right now. Check the connection and reload.</p>' : '') +
+      (stale !== null && stale > 7 ? '<p class="warn">The rate data is ' + stale + ' days old, so the daily FRED update may have stopped.' + (editor() ? ' You can add a rate change here in the meantime.' : '') + '</p>' : '') +
+      '</div><div><h3>Rate changes</h3><ol class="rates">';
+    moves.slice(-6).reverse().forEach(function (m) {
+      h += '<li><span>' + fmtDay(m.n, true) + '</span><span class="r">' + pct(m.v) + '</span><span class="' + (m.dir > 0 ? 'up' : m.dir < 0 ? 'down' : '') + '">' + (m.dir > 0 ? '↑' : m.dir < 0 ? '↓' : '') + '</span></li>';
+    });
+    h += '</ol>';
+    var manual = r.manual.filter(function (m) { return !last || m.from > last; });
+    if (manual.length) {
+      h += '<p class="fine">Entered by hand until FRED catches up:</p><ul class="sched">' + manual.map(function (m) {
+        var tools = editor() ? '<span class="tools">' + (ui.confirm === m.id
+          ? 'Remove? <button class="link danger" type="button" data-act="rm-rate" data-id="' + esc(m.id) + '">Remove</button> · <button class="link" type="button" data-act="rm-no">Keep</button>'
+          : '<button class="link" type="button" data-act="ask-rm" data-id="' + esc(m.id) + '">Remove</button>') + '</span>' : '';
+        return '<li><span>From ' + fmtDay(dn(m.from), true) + '</span><span class="mono">' + pct(+m.rate) + '</span>' + tools + '</li>';
+      }).join('') + '</ul>';
+    }
+    if (editor()) {
+      if (ui.form === 'rate') {
+        var minD = last ? ds(dn(last) + 1) : MIN_DATE;
+        h += '<form class="sheet" id="f-rate" novalidate><h3>Add a rate change</h3>' +
+          '<div class="fields"><label class="field">From<input id="rt-date" type="date" value="' + (minD > TODAY_S ? minD : TODAY_S) + '" min="' + minD + '"></label>' +
+          '<label class="field">Rate in percent<input id="rt-rate" inputmode="decimal" autocomplete="off" placeholder="' + rNow.toFixed(2) + '"></label></div>' +
+          '<p class="hint">Only needed if the daily FRED update stops. FRED data replaces these entries once it covers those days.</p>' +
+          '<p class="msg" id="form-msg" role="alert"></p>' +
+          '<div class="actions"><button class="btn primary" type="submit" id="form-go">Save rate</button>' +
+          '<button class="btn ghost" type="button" data-act="cancel">Cancel</button></div></form>';
+      } else {
+        h += '<div class="actions"><button class="btn" type="button" data-act="open" data-form="rate">Add a rate change</button></div>';
+      }
+    }
+    return h + '</div></section>';
+  }
+
+  /* The bottom panel: the family code for other parents, and turning a phone into a kid's view-only bank. */
+  function phonePanel() {
+    if (DEMO) return '<footer class="foot"><a href="./">Leave the demo</a><a href="../behavior/">Behavior log</a><a href="../trackers/">All trackers</a></footer>';
+    if (lock) {
+      var h = '<footer class="foot"><button class="link" type="button" data-act="unlock">Parent unlock</button></footer>';
+      if (ui.unlock) {
+        h = '<section class="panel phone"><form class="sheet" id="f-unlock" novalidate><h3>Unlock for parents</h3>' +
+          '<label class="field">Family code<input id="un-code" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>' +
+          '<p class="msg" id="form-msg" role="alert"></p>' +
+          '<div class="actions"><button class="btn primary" type="submit" id="form-go">Unlock</button><button class="btn ghost" type="button" data-act="cancel">Cancel</button></div></form></section>';
+      }
+      return h;
+    }
+    var h2 = '<section class="panel phone"><h2>This phone</h2>' +
+      '<p>Family code <span class="code">' + esc(code) + '</span></p>' +
+      '<p class="fine">Enter this code once on every parent’s phone and they all share the same balances. Anyone with the code can make changes, so keep it in the family.</p>' +
+      '<p>To give a kid a view-only piggy bank, open this page on their phone or tablet, enter the code, then tap their name:</p><div class="kidbtns">';
+    KIDS.forEach(function (k) {
+      h2 += ui.confirm === 'lock-' + k.id
+        ? '<span class="fine">Make this phone ' + k.name + '’s, view only? <button class="link danger" type="button" data-act="lock" data-kid="' + k.id + '">Yes</button> · <button class="link" type="button" data-act="rm-no">No</button></span>'
+        : '<button class="btn" type="button" data-act="ask-rm" data-id="lock-' + k.id + '" style="--kid: var(--' + k.id + ')">' + k.name + '’s phone</button>';
+    });
+    h2 += '</div><p class="fine">A locked phone shows only that kid’s bank with no buttons. To undo it, tap Parent unlock at the bottom and type the family code.</p>';
+    h2 += ui.confirm === 'switch'
+      ? '<p class="fine">Use a different family code on this phone? <button class="link danger" type="button" data-act="switch">Yes, switch</button> · <button class="link" type="button" data-act="rm-no">No</button></p>'
+      : '<p class="fine"><button class="link" type="button" data-act="ask-rm" data-id="switch">Use a different family code</button></p>';
+    return h2 + '</section><footer class="foot"><a href="../behavior/">Behavior log</a><a href="../trackers/">All trackers</a><a href="?demo=1">Demo with made-up entries</a></footer>';
+  }
+
+  function exampleNote() {
+    var ex = { tx: [], allowance: [{ kid: 'x', from: addMonths(YM_NOW, 1), amount: 10 }], rates: state.rates };
+    var r = simulate(ex, 'x', TODAY + 365);
+    var paid = r.events.filter(function (e) { return e.type === 'allowance'; }).length * 10;
+    return '<div class="example"><p><strong>How it grows:</strong> $10 a month at today’s rate becomes ' + money(r.bal) +
+      ' in a year: ' + money(paid) + ' saved plus ' + money(r.bal - paid) + ' of interest.</p></div>';
+  }
+
+  function drawChart() {
+    var box = app.querySelector('.chart');
+    if (!box) return;
+    var P = simulate(state, cur, TODAY + 365);
+    if (P.empty) { box.innerHTML = exampleNote(); return; }
+    var W = Math.max(260, Math.round(box.clientWidth || 520)), H = 200, pl = 6, pr = 6, pt = 30, pb = 24;
+    var pts = P.path, n0 = pts[0][0], n1 = pts[pts.length - 1][0], span = Math.max(1, n1 - n0);
+    var maxB = 0;
+    pts.forEach(function (p) { if (p[1] > maxB) maxB = p[1]; });
+    maxB = Math.max(maxB, 1) * 1.06;
+    function X(n) { return pl + (n - n0) / span * (W - pl - pr); }
+    function Y(b) { return pt + (1 - Math.max(0, b) / maxB) * (H - pt - pb); }
+    function line(a) { return a.map(function (p, i) { return (i ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1); }).join(''); }
+    var hist = pts.filter(function (p) { return p[0] <= TODAY; }), fut = pts.filter(function (p) { return p[0] >= TODAY; });
+    var endB = pts[pts.length - 1][1], xt = X(Math.max(TODAY, n0)), y0 = Y(0);
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '" role="img" aria-label="' +
+      nameOf(cur) + '’s balance so far and the next 12 months: about ' + money(endB) + ' by ' + fmtYM(ds(n1).slice(0, 7)) + '">';
+    s += '<line class="ch-base" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y0 + '" y2="' + y0 + '"/>';
+    if (hist.length > 1) {
+      var hl = line(hist);
+      s += '<path class="ch-area" d="' + hl + 'L' + X(hist[hist.length - 1][0]).toFixed(1) + ' ' + y0 + 'L' + X(hist[0][0]).toFixed(1) + ' ' + y0 + 'Z"/>';
+      s += '<path class="ch-line" d="' + hl + '"/>';
+    }
+    if (fut.length > 1) s += '<path class="ch-proj" d="' + line(fut) + '"/>';
+    if (hist.length) {
+      s += '<line class="ch-today" x1="' + xt.toFixed(1) + '" x2="' + xt.toFixed(1) + '" y1="' + (pt - 8) + '" y2="' + y0 + '"/>';
+      s += '<circle class="ch-dot" cx="' + xt.toFixed(1) + '" cy="' + Y(hist[hist.length - 1][1]).toFixed(1) + '" r="4.5"/>';
+    }
+    var ye = Y(endB);
+    s += '<circle class="ch-dot" cx="' + X(n1).toFixed(1) + '" cy="' + ye.toFixed(1) + '" r="4.5"/>';
+    s += '<text class="ch-end" x="' + (W - pr) + '" y="' + Math.max(13, ye - 11).toFixed(1) + '" text-anchor="end">' + money(endB) + ' by ' + fmtYM(ds(n1).slice(0, 7)) + '</text>';
+    var by = H - 6;
+    if (hist.length > 1 && xt - pl > 90) s += '<text class="ch-t" x="' + pl + '" y="' + by + '">' + fmtYM(ds(n0).slice(0, 7)) + '</text>';
+    if (hist.length) s += '<text class="ch-t" x="' + xt.toFixed(1) + '" y="' + by + '" text-anchor="' + (xt < 40 ? 'start' : 'middle') + '">Today</text>';
+    s += '</svg>';
+    box.innerHTML = s + '<p class="ch-note">Dashed line: where ' + nameOf(cur) + '’s balance goes if the money stays in, with the planned allowance and today’s rate.</p>';
+  }
+
+  function renderSetup() {
+    var behaviorCode = lsGet(BEHAVIOR_CODE_KEY);
+    app.style.setProperty('--kid', 'var(--laura)');
+    app.innerHTML = '<div class="wrap setup">' + pig('brand-pig') + '<h1>Piggy Bank</h1>' +
+      '<p>Enter your family code. Use the same code on every phone so everyone sees the same balances.</p>' +
+      '<form id="f-setup" novalidate style="display:grid;gap:10px;width:100%">' +
+      '<input id="setup-code" maxlength="16" placeholder="CODE" autocomplete="off" autocapitalize="characters" spellcheck="false">' +
+      '<p class="msg" id="form-msg" role="alert"></p>' +
+      '<button class="btn primary" type="submit">Start</button></form>' +
+      (behaviorCode ? '<button class="btn" type="button" data-act="use-behavior">Use the Behavior Log’s code</button>' : '') +
+      '<button class="link" type="button" data-act="new-code">Create a new code</button>' +
+      '<p class="fine"><a class="link" href="?demo=1">Look around with made-up entries first</a></p></div>';
+  }
+
+  function render() {
+    if (!code && !DEMO) { renderSetup(); return; }
+    state = buildState();
+    // Keep whatever a parent is typing when another phone's change arrives and the page redraws.
+    var typed = {}, focusId = document.activeElement && document.activeElement.id;
+    Array.prototype.forEach.call(app.querySelectorAll('.sheet input[id]'), function (i) { typed[i.id] = i.value; });
+    var led = {};
+    KIDS.forEach(function (k) { led[k.id] = simulate(state, k.id, TODAY); });
+    var k = { id: cur, name: nameOf(cur) }, L = led[cur], rNow = rateFn(state)(TODAY);
+    app.style.setProperty('--kid', 'var(--' + cur + ')');
+    app.innerHTML = (DEMO ? '<div class="banner">Demo: made-up entries, nothing is saved</div>' : '') +
+      '<div class="wrap">' + header(rNow) + tabs(led) +
+      '<div class="grid"><div class="col">' + hero(k, L, rNow) + allowancePanel(k) + '</div>' +
+      '<div class="col">' + passbook(k, L) + '</div></div>' +
+      howItWorks(rNow) + phonePanel() + '</div>';
+    Object.keys(typed).forEach(function (id) { var el = document.getElementById(id); if (el) el.value = typed[id]; });
+    if (focusId && typed.hasOwnProperty(focusId)) { var f = document.getElementById(focusId); if (f) f.focus({ preventScroll: true }); }
+    updateGoLabel();
+    drawChart();
+  }
+
+  /* ---------- Messages ---------- */
+  var toastEl = null, toastTimer = 0;
+  function toast(msg) {
+    if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'toast'; toastEl.setAttribute('role', 'status'); document.body.appendChild(toastEl); }
+    toastEl.textContent = msg; toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.hidden = true; }, 4500);
+  }
+  function formMsg(t) { var m = document.getElementById('form-msg'); if (m) m.textContent = t; else toast(t); }
+  function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+  function updateGoLabel() {
+    var go = document.getElementById('form-go');
+    if (!go) return;
+    if (document.getElementById('tx-amount')) {
+      var v = parseAmount(val('tx-amount')), w = ui.form === 'withdraw';
+      go.textContent = (w ? 'Withdraw' : 'Deposit') + (v > 0 ? ' ' + money(v) + (w ? ' from ' : ' to ') + nameOf(cur) : '');
+    } else if (document.getElementById('al-amount')) {
+      var a = parseAmount(val('al-amount')), f = val('al-from');
+      go.textContent = a >= 0 && /^\d{4}-\d{2}$/.test(f) ? (a > 0 ? 'Set ' + money(a) + ' a month from ' + fmtYM(f) : 'Stop from ' + fmtYM(f)) : 'Save allowance';
+    }
+  }
+
+  /* ---------- Changes: check the result never goes below zero, then write ---------- */
+  function negativeAt(next, kid) { var sim = simulate(next, kid, TODAY); return sim.empty ? null : sim.negAt; }
+  function done(msg) { ui.form = null; ui.confirm = null; toast(msg); render(); }
+
+  function submitTx() {
+    var w = ui.form === 'withdraw', amt = parseAmount(val('tx-amount')), date = val('tx-date'), note = val('tx-note').trim().slice(0, 60);
+    if (!(amt > 0)) return formMsg('Enter an amount in dollars and cents, like 12.50.');
+    if (amt > 100000) return formMsg('That is more than $100,000. Please check the amount.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return formMsg('Pick a date.');
+    if (date > TODAY_S) return formMsg('The date can’t be in the future.');
+    if (date < MIN_DATE) return formMsg('The earliest date is Jan 1, 2025.');
+    var tx = { kid: cur, date: date, amount: w ? -amt : amt, note: note, t: Date.now() };
+    if (w && negativeAt({ tx: state.tx.concat([tx]), allowance: state.allowance, rates: state.rates }, cur) !== null) {
+      var base = simulate(state, cur, TODAY), d = dn(date), avail = 0;
+      if (!base.empty && d >= base.path[0][0]) { avail = Infinity; base.path.forEach(function (p) { if (p[0] >= d && p[1] < avail) avail = p[1]; }); }
+      return formMsg(nameOf(cur) + ' has ' + money(Math.max(0, avail)) + ' available from that date on. A withdrawal can’t take the balance below zero.');
+    }
+    var msg = (w ? 'Took ' + money(amt) + ' out of ' : 'Put ' + money(amt) + ' into ') + nameOf(cur) + '’s piggy bank.';
+    ui.form = null;
+    write('tx/' + newId(), tx);
+    done(msg);
+  }
+
+  function submitAllowance() {
+    var amt = parseAmount(val('al-amount')), from = val('al-from').trim(), kid = cur;
+    if (!(amt >= 0)) return formMsg('Enter a monthly amount in dollars, like 10.00, or 0 to stop.');
+    if (amt > 10000) return formMsg('That is more than $10,000 a month. Please check the amount.');
+    if (!/^\d{4}-\d{2}$/.test(from)) return formMsg('Enter the starting month as year and month, like ' + addMonths(YM_NOW, 1) + '.');
+    if (from < '2025-01') return formMsg('The earliest starting month is January 2025.');
+    if (from > addMonths(YM_NOW, 60)) return formMsg('Pick a starting month within the next five years.');
+    var same = state.allowance.filter(function (a) { return a.kid === kid && a.from === from; });
+    var entry = { kid: kid, from: from, amount: amt, t: Date.now() };
+    var next = { tx: state.tx, allowance: state.allowance.filter(function (a) { return same.indexOf(a) < 0; }).concat([entry]), rates: state.rates };
+    var neg = negativeAt(next, kid);
+    if (neg !== null) return formMsg('That would take ' + nameOf(kid) + '’s balance below zero on ' + fmtDay(neg, true) + '. Change or remove a later withdrawal first.');
+    ui.form = null;
+    same.forEach(function (a) { write('allowance/' + a.id, null); });
+    write('allowance/' + newId(), entry);
+    done(amt > 0 ? nameOf(kid) + '’s allowance is ' + money(amt) + ' a month from ' + fmtYM(from) + '.' : nameOf(kid) + '’s allowance stops from ' + fmtYM(from) + '.');
+  }
+
+  function submitRate() {
+    var date = val('rt-date'), rate = parseFloat(String(val('rt-rate')).replace('%', '')), last = state.rates.lastObs;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return formMsg('Pick the date the new rate starts.');
+    if (last && date <= last) return formMsg('Pick a date after ' + fmtDay(dn(last), true) + '. Earlier days already use FRED data.');
+    if (date > ds(TODAY + 365)) return formMsg('Pick a date within the next year.');
+    if (!(rate >= 0 && rate <= 20)) return formMsg('Enter the rate in percent, like 3.63.');
+    rate = Math.round(rate * 100) / 100;
+    ui.form = null;
+    state.rates.manual.filter(function (m) { return m.from === date; }).forEach(function (m) { write('manualRates/' + m.id, null); });
+    write('manualRates/' + newId(), { from: date, rate: rate, t: Date.now() });
+    done('Interest rate set to ' + pct(rate) + ' from ' + fmtDay(dn(date), true) + '.');
+  }
+
+  function removeTx(id) {
+    var t = state.tx.filter(function (x) { return x.id === id; })[0];
+    if (!t) return;
+    var neg = negativeAt({ tx: state.tx.filter(function (x) { return x.id !== id; }), allowance: state.allowance, rates: state.rates }, t.kid);
+    if (neg !== null) { ui.confirm = null; render(); return toast('Removing that would take ' + nameOf(t.kid) + '’s balance below zero on ' + fmtDay(neg, true) + '. Remove the later withdrawal first.'); }
+    write('tx/' + id, null);
+    done('Entry removed from ' + nameOf(t.kid) + '’s passbook.');
+  }
+  function removeAllowance(id) {
+    var a = state.allowance.filter(function (x) { return x.id === id; })[0];
+    if (!a) return;
+    var neg = negativeAt({ tx: state.tx, allowance: state.allowance.filter(function (x) { return x.id !== id; }), rates: state.rates }, a.kid);
+    if (neg !== null) { ui.confirm = null; render(); return toast('Removing that would take ' + nameOf(a.kid) + '’s balance below zero on ' + fmtDay(neg, true) + '. Remove the later withdrawal first.'); }
+    write('allowance/' + id, null);
+    done('Allowance change removed.');
+  }
+
+  /* ---------- Events ---------- */
+  app.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-act]');
+    if (!b) return;
+    var act = b.dataset.act, id = b.dataset.id;
+    if (act === 'kid') {
+      var kid = b.dataset.kid;
+      if (kid !== cur) { cur = kid; ui.form = null; ui.showAll = false; ui.confirm = null; render(); }
+      try { if (location.hash !== '#' + kid) location.hash = kid; } catch (err) {}
+    } else if (act === 'open') {
+      ui.form = b.dataset.form; ui.confirm = null; render();
+      var first = app.querySelector('.sheet input');
+      if (first) { first.focus(); first.closest('.sheet').scrollIntoView({ block: 'nearest' }); }
+    } else if (act === 'cancel') { ui.form = null; ui.unlock = false; render(); }
+    else if (act === 'more') { ui.showAll = !ui.showAll; render(); }
+    else if (act === 'ask-rm') { ui.confirm = id; render(); }
+    else if (act === 'rm-no') { ui.confirm = null; render(); }
+    else if (act === 'rm-tx') removeTx(id);
+    else if (act === 'rm-al') removeAllowance(id);
+    else if (act === 'rm-rate') { write('manualRates/' + id, null); done('Rate change removed.'); }
+    else if (act === 'lock') { lock = b.dataset.kid; lsSet(LOCK_KEY, lock); cur = lock; ui.confirm = null; window.scrollTo(0, 0); render(); }
+    else if (act === 'unlock') { ui.unlock = true; render(); var u = document.getElementById('un-code'); if (u) u.focus(); }
+    else if (act === 'switch') { lsDel(CODE_KEY); location.reload(); }
+    else if (act === 'use-behavior') { connect(lsGet(BEHAVIOR_CODE_KEY)); loadRates(); }
+    else if (act === 'new-code') {
+      var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', buf = new Uint32Array(10), out = '';
+      crypto.getRandomValues(buf);
+      for (var i = 0; i < 10; i++) out += chars[buf[i] % chars.length];
+      document.getElementById('setup-code').value = out;
+    }
+  });
+  app.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var f = e.target.id;
+    if (f === 'f-tx') submitTx();
+    else if (f === 'f-al') submitAllowance();
+    else if (f === 'f-rate') submitRate();
+    else if (f === 'f-setup') {
+      var c = val('setup-code').trim().toUpperCase();
+      if (!/^[A-Z0-9]{6,16}$/.test(c)) return formMsg('Codes are 6 to 16 letters and digits.');
+      connect(c); loadRates();
+    } else if (f === 'f-unlock') {
+      if (val('un-code').trim().toUpperCase() !== code) return formMsg('That code doesn’t match this phone’s family code.');
+      lock = null; lsDel(LOCK_KEY); ui.unlock = false; render(); toast('Unlocked. All three piggy banks and the buttons are back.');
+    }
+  });
+  app.addEventListener('input', function () {
+    var m = document.getElementById('form-msg');
+    if (m) m.textContent = '';
+    updateGoLabel();
+  });
+  window.addEventListener('hashchange', function () {
+    var h = kidFromHash();
+    if (h && h !== cur && !lock) { cur = h; ui.form = null; ui.showAll = false; ui.confirm = null; render(); }
+  });
+  var resizeT = 0;
+  window.addEventListener('resize', function () { clearTimeout(resizeT); resizeT = setTimeout(drawChart, 150); });
+  // A page left open overnight should move to the new day: new interest, and the allowance on the 1st.
+  setInterval(function () {
+    var t = etToday();
+    if (t !== TODAY_S) { TODAY_S = t; TODAY = dn(t); YM_NOW = t.slice(0, 7); render(); }
+  }, 60000);
+
+  /* ---------- Start ---------- */
+  if (DEMO) {
+    // Made-up entries held in memory only: write() never sends or saves in demo mode.
+    var y = TODAY_S.slice(0, 4), lastYear = String(+y - 1);
+    data = {
+      tx: {
+        d1: { kid: 'laura', date: lastYear + '-12-25', amount: 100, note: 'Christmas money', t: 1 },
+        d2: { kid: 'laura', date: y + '-06-10', amount: -30, note: 'Lego set', t: 2 },
+        d3: { kid: 'julia', date: lastYear + '-12-25', amount: 80, note: 'Christmas money', t: 3 },
+        d4: { kid: 'julia', date: y + '-03-14', amount: 25, note: 'Birthday money from Grandma', t: 4 },
+        d5: { kid: 'marina', date: y + '-05-02', amount: 50, note: 'Opening deposit', t: 5 }
+      },
+      allowance: {
+        a1: { kid: 'laura', from: y + '-01', amount: 10, t: 1 },
+        a2: { kid: 'julia', from: y + '-01', amount: 8, t: 2 },
+        a3: { kid: 'marina', from: y + '-06', amount: 5, t: 3 }
+      },
+      manualRates: {}
+    };
+    loaded = true;
+    render();
+    loadRates();
+  } else if (lsGet(CODE_KEY)) {
+    connect(lsGet(CODE_KEY));
+    loadRates();
+  } else {
+    renderSetup();
+  }
+})();
+</script>
+</body>
+</html>
