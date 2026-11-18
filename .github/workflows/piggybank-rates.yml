@@ -1,0 +1,42 @@
+# Piggy bank: refresh piggybank/rates.json on the gh-pages branch from FRED (series DFF).
+# This file lives on main because GitHub only runs scheduled workflows from the default
+# branch; the site itself is served from gh-pages, so the job checks that branch out,
+# runs piggybank/update_rates.py, and commits only when FRED has new data.
+# Run it by hand from the Actions tab ("Run workflow") at any time.
+name: Piggy bank fed funds rate
+
+on:
+  schedule:
+    - cron: "23 21 * * *"   # daily at 21:23 UTC (4-5pm Eastern), after FRED's daily update
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Download DFF from FRED
+        run: python3 piggybank/update_rates.py piggybank/rates.json
+
+      - name: Commit and publish if the data changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git add piggybank/rates.json
+          if git diff --cached --quiet; then
+            echo "No new FRED data today."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Piggy bank: update fed funds rate"
+          git push origin gh-pages
+          # Pushes made with GITHUB_TOKEN may not trigger a Pages build on their own; ask for one.
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "Pages build request failed; the push may still trigger one."
